@@ -96,6 +96,8 @@
   .ok-panel p{color:var(--gris);max-width:44ch;margin:0 auto 10px}
   .tic{font-size:3rem;line-height:1}
 
+  .guardar-enlace{border:1px solid var(--linea);background:#fff;border-radius:5px;padding:16px;margin:26px auto 0;max-width:480px;text-align:left}
+  .guardar-enlace input{width:100%;font-family:'IBM Plex Mono',monospace;font-size:.82rem;padding:10px;border:1.5px solid var(--linea);border-radius:4px}
   footer{margin-top:52px;padding-top:20px;border-top:1px solid var(--linea);
          font-size:.85rem;color:var(--gris);display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap}
   footer a{color:var(--gris)}
@@ -171,7 +173,8 @@
       </div>
 
       <div class="campo">
-        <label for="email">Tu email <span style="font-weight:400;color:var(--gris)">(opcional)</span></label>
+        <label for="email">Tu email</label>
+        <p class="ayuda">Te mandamos aquí el enlace para valorar al profesional cuando termine el trabajo.</p>
         <input type="email" id="email" maxlength="120" autocomplete="email">
         <span class="err" id="err-email"></span>
       </div>
@@ -191,6 +194,13 @@
     <h2>Solicitud enviada</h2>
     <p>Ya está en el tablón de los instaladores de tu provincia. El que la acepte te llamará al teléfono que nos has dado.</p>
     <p>Si en unos días no te ha llamado nadie, escríbenos a <a href="mailto:jmanuelgonzalezlagar4@gmail.com">jmanuelgonzalezlagar4@gmail.com</a>.</p>
+
+    <div class="guardar-enlace">
+      <p><strong>Guarda este enlace.</strong> Cuando el profesional termine, ábrelo para valorarlo. Es privado y solo sirve para tu obra.</p>
+      <input type="text" id="enlace-valorar" readonly onclick="this.select()">
+      <button type="button" class="enviar" style="margin-top:10px" onclick="copiarEnlace()">Copiar enlace</button>
+      <p class="ayuda" id="copiado" style="min-height:20px"></p>
+    </div>
   </section>
 
   <footer>
@@ -225,6 +235,19 @@ const PROV = {"01":"Álava","02":"Albacete","03":"Alicante","04":"Almería","05"
 "49":"Zamora","50":"Zaragoza","51":"Ceuta","52":"Melilla"};
 
 const $ = id => document.getElementById(id);
+
+/* Token secreto de la obra: es la llave del cliente para valorar después. */
+function nuevoToken(){
+  const b = new Uint8Array(16); crypto.getRandomValues(b);
+  return Array.from(b, x => x.toString(16).padStart(2,"0")).join("");
+}
+/* Huella del teléfono: permite al instalador consultar la reputación del
+   cliente sin llegar a ver el número. */
+async function huellaTelefono(tel){
+  const limpio = tel.replace(/[^0-9]/g,"");
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("presuvolt:"+limpio));
+  return Array.from(new Uint8Array(buf), x => x.toString(16).padStart(2,"0")).join("");
+}
 const cpInput = $("cp"), provDiv = $("prov");
 
 cpInput.addEventListener("input", () => {
@@ -251,10 +274,18 @@ function validar(){
   const tel = $("telefono").value.trim();
   if (!/^[+0-9 ]{9,17}$/.test(tel)) ok = pon("telefono","Escribe un teléfono válido, solo cifras y espacios.");
   const em = $("email").value.trim();
-  if (em && !/^[^@]+@[^@]+\.[^@]+$/.test(em)) ok = pon("email","Ese email no parece correcto.");
+  if (!em) ok = pon("email","Necesitamos tu email para mandarte el enlace de valoración.");
+  else if (!/^[^@]+@[^@]+\.[^@]+$/.test(em)) ok = pon("email","Ese email no parece correcto.");
   if (!$("consent").checked) ok = pon("consent","Necesitamos tu permiso para pasarle tus datos al instalador.");
   return ok;
 }
+
+window.copiarEnlace = () => {
+  const i = $("enlace-valorar"); i.select();
+  navigator.clipboard.writeText(i.value)
+    .then(() => { $("copiado").textContent = "✅ Copiado. Guárdalo donde no lo pierdas."; })
+    .catch(() => { $("copiado").textContent = "Selecciónalo y cópialo a mano."; });
+};
 
 $("form-obra").addEventListener("submit", async e => {
   e.preventDefault();
@@ -268,21 +299,27 @@ $("form-obra").addEventListener("submit", async e => {
   btn.disabled = true; btn.textContent = "Enviando…";
   try {
     const cp = cpInput.value;
+    const token = nuevoToken();
+    const telHash = await huellaTelefono($("telefono").value.trim());
     const ref = await addDoc(collection(db,"solicitudes"), {
       descripcion: $("descripcion").value.trim(),
       oficio: document.querySelector('input[name=oficio]:checked').value,
       provincia: PROV[cp.slice(0,2)],
       cp: cp,
       cuando: $("cuando").value,
+      telHash: telHash,
       estado: "abierta",
       aceptadaPor: null,
       creado: serverTimestamp()
     });
+    await setDoc(doc(db,"solicitudes",ref.id,"secreto",token), {});
     await setDoc(doc(db,"solicitudes",ref.id,"contacto","datos"), {
       nombre: $("nombre").value.trim(),
       telefono: $("telefono").value.trim(),
       email: $("email").value.trim()
     });
+    const enlace = location.origin + "/valorar.html?o=" + ref.id + "&t=" + token;
+    $("enlace-valorar").value = enlace;
     $("formulario").style.display = "none";
     $("ok-panel").style.display = "block";
     window.scrollTo({top:0,behavior:"smooth"});
