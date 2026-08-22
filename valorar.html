@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Valora al profesional — PresuVolt</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@700;800&family=Barlow:wght@400;500;600&display=swap">
+<style>
+  :root{--grafito:#1A1C1E;--papel:#FBFBF9;--amarillo:#F5C400;--linea:#DDDDD6;--gris:#5B5E63;--error:#B3261E}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--papel);color:var(--grafito);font-family:'Barlow',system-ui,sans-serif;font-size:17px;line-height:1.6}
+  .wrap{max-width:520px;margin:0 auto;padding:0 20px 70px}
+  header{padding:22px 0;border-bottom:1px solid var(--linea)}
+  .logo{font-family:'Barlow Semi Condensed',sans-serif;font-weight:800;font-size:1.5rem}
+  .logo span{background:var(--amarillo);padding:0 6px}
+  h1{font-family:'Barlow Semi Condensed',sans-serif;font-weight:800;font-size:clamp(1.8rem,6vw,2.4rem);line-height:1.1;margin:32px 0 10px}
+  .sub{color:var(--gris);margin:0 0 26px}
+
+  .estrellas{display:flex;gap:6px;justify-content:center;margin:8px 0 6px}
+  .estrellas button{
+    background:none;border:0;font-size:2.6rem;line-height:1;cursor:pointer;
+    padding:2px 4px;filter:grayscale(1) opacity(.35);transition:filter .12s,transform .12s;
+  }
+  .estrellas button.on{filter:none;transform:scale(1.06)}
+  .estrellas button:focus-visible{outline:2px solid var(--grafito);outline-offset:2px;border-radius:6px}
+  .nota-txt{text-align:center;font-weight:600;min-height:26px;color:var(--gris)}
+
+  label{font-weight:600;display:block;margin:22px 0 7px}
+  textarea{width:100%;font-family:inherit;font-size:1rem;padding:12px 13px;border:1.5px solid var(--linea);border-radius:4px;min-height:110px;resize:vertical;background:#fff;color:var(--grafito)}
+  textarea:focus{outline:2px solid var(--amarillo);outline-offset:1px;border-color:var(--grafito)}
+  .cuenta{font-size:.82rem;color:var(--gris);text-align:right}
+
+  button.enviar{
+    font-family:'Barlow Semi Condensed',sans-serif;font-weight:700;text-transform:uppercase;
+    font-size:1.2rem;background:var(--grafito);color:var(--papel);border:0;border-radius:4px;
+    padding:15px 22px;cursor:pointer;width:100%;margin-top:18px;
+  }
+  button.enviar:disabled{opacity:.5;cursor:not-allowed}
+  button.enviar:focus-visible{outline:3px solid var(--amarillo);outline-offset:2px}
+
+  .aviso{border:1px solid var(--linea);background:#fff;border-radius:5px;padding:15px;margin:20px 0}
+  .aviso.malo{background:#FDECEA;border-color:#F3B8B2;color:#7A1C15}
+  .oculto{display:none}
+  .tic{font-size:3rem;text-align:center;line-height:1}
+  .fin{text-align:center;padding:40px 0}
+  .fin h2{font-family:'Barlow Semi Condensed',sans-serif;font-size:2rem;margin:0 0 10px}
+  footer{margin-top:44px;padding-top:18px;border-top:1px solid var(--linea);font-size:.85rem;color:var(--gris)}
+  footer a{color:var(--gris)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><div class="logo">Presu<span>Volt</span></div></header>
+
+  <main id="form-zona">
+    <h1>¿Qué tal fue el trabajo?</h1>
+    <p class="sub">Tu valoración es anónima para el resto de clientes y nos ayuda a que en PresuVolt solo queden profesionales que cumplen.</p>
+
+    <div id="error-zona" class="aviso malo oculto"></div>
+
+    <div class="estrellas" id="estrellas">
+      <button type="button" data-n="1" aria-label="1 estrella">⭐</button>
+      <button type="button" data-n="2" aria-label="2 estrellas">⭐</button>
+      <button type="button" data-n="3" aria-label="3 estrellas">⭐</button>
+      <button type="button" data-n="4" aria-label="4 estrellas">⭐</button>
+      <button type="button" data-n="5" aria-label="5 estrellas">⭐</button>
+    </div>
+    <p class="nota-txt" id="nota-txt">Pulsa las estrellas</p>
+
+    <label for="comentario">¿Quieres contar algo más? <span style="font-weight:400;color:var(--gris)">(opcional)</span></label>
+    <textarea id="comentario" maxlength="300" placeholder="Llegó puntual, dejó todo recogido…"></textarea>
+    <p class="cuenta"><span id="cuenta">0</span>/300</p>
+
+    <button class="enviar" id="btn" disabled>Enviar valoración</button>
+  </main>
+
+  <section class="fin oculto" id="fin-zona">
+    <div class="tic">✅</div>
+    <h2>Gracias</h2>
+    <p class="sub">Tu valoración queda registrada. Con gente como tú esto funciona.</p>
+  </section>
+
+  <footer>
+    PresuVolt · <a href="/">Inicio</a> · <a href="/condiciones.html">Condiciones</a> · <a href="/presuvolt/privacidad.html">Privacidad</a>
+  </footer>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore, doc, setDoc, serverTimestamp }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyARi5AunRzj9_thyzT4S0fV2lJGPueZE48",
+  authDomain: "presuvolt-bc910.firebaseapp.com",
+  projectId: "presuvolt-bc910",
+  storageBucket: "presuvolt-bc910.firebasestorage.app",
+  messagingSenderId: "642017366697",
+  appId: "1:642017366697:web:0bde2c8ef424171de80fb8"
+};
+const db = getFirestore(initializeApp(firebaseConfig));
+
+const $ = id => document.getElementById(id);
+const par = new URLSearchParams(location.search);
+const obra = par.get("o") || "";
+const token = par.get("t") || "";
+
+const TEXTOS = {1:"Muy mal",2:"Mal",3:"Regular",4:"Bien",5:"Muy bien"};
+let estrellas = 0;
+
+function mostrarError(msg){
+  const z = $("error-zona"); z.textContent = msg; z.classList.remove("oculto");
+}
+
+if (!obra || !token || !/^[a-f0-9]{32}$/.test(token)){
+  mostrarError("Este enlace no es válido. Usa el que te dimos al enviar tu solicitud; si lo has perdido, escríbenos a jmanuelgonzalezlagar4@gmail.com.");
+  $("btn").disabled = true;
+  $("estrellas").style.pointerEvents = "none";
+}
+
+$("estrellas").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  estrellas = Number(b.dataset.n);
+  [...$("estrellas").children].forEach((el,i) => el.classList.toggle("on", i < estrellas));
+  $("nota-txt").textContent = TEXTOS[estrellas];
+  $("btn").disabled = false;
+});
+
+$("comentario").addEventListener("input", e => { $("cuenta").textContent = e.target.value.length; });
+
+$("btn").addEventListener("click", async () => {
+  if (!estrellas) return;
+  const btn = $("btn");
+  btn.disabled = true; btn.textContent = "Enviando…";
+  try {
+    await setDoc(doc(db,"solicitudes",obra,"valoraciones_instalador",token), {
+      estrellas: estrellas,
+      comentario: $("comentario").value.trim(),
+      creado: serverTimestamp()
+    });
+    $("form-zona").classList.add("oculto");
+    $("fin-zona").classList.remove("oculto");
+  } catch(err){
+    console.error(err);
+    btn.disabled = false; btn.textContent = "Enviar valoración";
+    mostrarError(String(err.code||"").includes("permission-denied")
+      ? "Esta obra ya está valorada, o el enlace no es correcto. Cada obra se valora una sola vez."
+      : "No hemos podido guardar tu valoración. Revisa la conexión y prueba otra vez.");
+  }
+});
+</script>
+</body>
+</html>
