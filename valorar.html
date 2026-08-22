@@ -147,7 +147,7 @@ $("btn").addEventListener("click", async () => {
     console.error(err);
     btn.disabled = false; btn.textContent = "Enviar valoración";
     mostrarError(String(err.code||"").includes("permission-denied")
-      ? "Esta obra ya está valorada, o el enlace no es correcto. Cada obra se valora una sola vez."
+      ? "Todavía no se puede valorar. Puede ser porque ningún profesional haya aceptado aún tu obra, porque ya la valoraste (solo se puede una vez), o porque el enlace no sea correcto."
       : "No hemos podido guardar tu valoración. Revisa la conexión y prueba otra vez.");
   }
 });
