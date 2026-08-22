@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pide presupuesto a un instalador — PresuVolt</title>
+<meta name="description" content="Cuenta qué necesitas y te contactan instaladores dados de alta en PresuVolt: electricidad, fotovoltaica, climatización y aerotermia.">
+<meta name="robots" content="index,follow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root{
+    --grafito:#1A1C1E;
+    --papel:#FBFBF9;
+    --amarillo:#F5C400;
+    --wa:#1FAF54;
+    --linea:#DDDDD6;
+    --gris:#5B5E63;
+    --error:#B3261E;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;background:var(--papel);color:var(--grafito);
+    font-family:'Barlow',system-ui,sans-serif;font-size:17px;line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:640px;margin:0 auto;padding:0 20px 72px}
+  header{padding:22px 0;border-bottom:1px solid var(--linea);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .logo{font-family:'Barlow Semi Condensed',sans-serif;font-weight:800;font-size:1.5rem;letter-spacing:-.01em}
+  .logo span{background:var(--amarillo);padding:0 6px}
+  .soy-instalador{font-size:.9rem;color:var(--gris);text-decoration:none;border-bottom:1px solid var(--linea)}
+  .soy-instalador:hover,.soy-instalador:focus-visible{color:var(--grafito);border-color:var(--amarillo)}
+
+  h1{font-family:'Barlow Semi Condensed',sans-serif;font-weight:800;
+     font-size:clamp(2rem,7vw,2.9rem);line-height:1.05;margin:34px 0 12px;text-wrap:balance}
+  .sub{color:var(--gris);font-size:1.08rem;margin:0 0 8px;max-width:52ch}
+  .gratis{
+    display:inline-block;margin-top:14px;background:var(--amarillo);color:var(--grafito);
+    font-family:'Barlow Semi Condensed',sans-serif;font-weight:700;text-transform:uppercase;
+    padding:5px 12px;font-size:.95rem;letter-spacing:.02em;
+  }
+
+  form{margin-top:34px;display:grid;gap:22px}
+  .campo{display:grid;gap:7px}
+  label{font-weight:600;font-size:1rem}
+  .ayuda{font-size:.88rem;color:var(--gris);margin:0}
+  input[type=text],input[type=tel],input[type=email],textarea,select{
+    font-family:inherit;font-size:1rem;padding:12px 13px;border:1.5px solid var(--linea);
+    border-radius:4px;background:#fff;color:var(--grafito);width:100%;
+  }
+  textarea{min-height:118px;resize:vertical}
+  input:focus,textarea:focus,select:focus{outline:2px solid var(--amarillo);outline-offset:1px;border-color:var(--grafito)}
+  .fila{display:grid;grid-template-columns:150px 1fr;gap:12px;align-items:end}
+  @media (max-width:520px){.fila{grid-template-columns:1fr}}
+  .prov{
+    font-family:'IBM Plex Mono',monospace;font-size:.9rem;color:var(--gris);
+    padding:12px 0;min-height:46px;display:flex;align-items:center;
+  }
+  .prov.ok{color:var(--grafito);font-weight:500}
+
+  .oficios{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}
+  @media (max-width:460px){.oficios{grid-template-columns:1fr}}
+  .oficio{position:relative}
+  .oficio input{position:absolute;opacity:0;pointer-events:none}
+  .oficio span{
+    display:block;border:1.5px solid var(--linea);border-radius:4px;padding:13px 14px;
+    background:#fff;cursor:pointer;font-weight:500;
+  }
+  .oficio input:checked + span{border-color:var(--grafito);background:var(--amarillo);font-weight:600}
+  .oficio input:focus-visible + span{outline:2px solid var(--grafito);outline-offset:2px}
+
+  .consent{display:grid;grid-template-columns:22px 1fr;gap:11px;align-items:start;
+           border:1px solid var(--linea);border-radius:4px;padding:14px;background:#fff}
+  .consent input{width:19px;height:19px;margin-top:3px}
+  .consent p{margin:0;font-size:.92rem;color:var(--gris)}
+  .consent a{color:var(--grafito)}
+
+  button.enviar{
+    font-family:'Barlow Semi Condensed',sans-serif;font-weight:700;text-transform:uppercase;
+    font-size:1.25rem;letter-spacing:.02em;background:var(--grafito);color:var(--papel);
+    border:0;border-radius:4px;padding:16px 22px;cursor:pointer;width:100%;
+  }
+  button.enviar:hover{background:#000}
+  button.enviar:disabled{opacity:.55;cursor:not-allowed}
+  button.enviar:focus-visible{outline:3px solid var(--amarillo);outline-offset:2px}
+
+  .err{color:var(--error);font-size:.88rem;font-weight:500;min-height:0}
+  .aviso-error{
+    background:#FDECEA;border:1px solid #F3B8B2;color:#7A1C15;
+    padding:13px 15px;border-radius:4px;font-size:.95rem;display:none;
+  }
+
+  .ok-panel{display:none;text-align:center;padding:44px 0}
+  .ok-panel h2{font-family:'Barlow Semi Condensed',sans-serif;font-size:2.2rem;margin:0 0 12px;font-weight:800}
+  .ok-panel p{color:var(--gris);max-width:44ch;margin:0 auto 10px}
+  .tic{font-size:3rem;line-height:1}
+
+  footer{margin-top:52px;padding-top:20px;border-top:1px solid var(--linea);
+         font-size:.85rem;color:var(--gris);display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap}
+  footer a{color:var(--gris)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="logo">Presu<span>Volt</span></div>
+    <a class="soy-instalador" href="/">Soy instalador →</a>
+  </header>
+
+  <main id="formulario">
+    <h1>Cuenta tu obra y que te llamen los instaladores</h1>
+    <p class="sub">Describe lo que necesitas. Tu solicitud le llega a instaladores dados de alta en PresuVolt de tu provincia — electricidad, placas solares, aire acondicionado o aerotermia.</p>
+    <span class="gratis">Gratis y sin compromiso</span>
+
+    <div class="aviso-error" id="aviso-error"></div>
+
+    <form id="form-obra" novalidate>
+
+      <div class="campo">
+        <label for="descripcion">¿Qué necesitas?</label>
+        <p class="ayuda">Cuanto más concreto, mejores presupuestos recibirás. Por ejemplo: «Cambiar el cuadro eléctrico de un piso de 90 m² en un tercero sin ascensor».</p>
+        <textarea id="descripcion" maxlength="1000" placeholder="Cuéntalo con tus palabras…"></textarea>
+        <span class="err" id="err-descripcion"></span>
+      </div>
+
+      <div class="campo">
+        <label>Tipo de trabajo</label>
+        <div class="oficios">
+          <label class="oficio"><input type="radio" name="oficio" value="electricidad"><span>⚡ Electricidad</span></label>
+          <label class="oficio"><input type="radio" name="oficio" value="fotovoltaica"><span>☀️ Placas solares</span></label>
+          <label class="oficio"><input type="radio" name="oficio" value="clima"><span>❄️ Clima / aerotermia</span></label>
+          <label class="oficio"><input type="radio" name="oficio" value="otros"><span>🔧 Otra cosa</span></label>
+        </div>
+        <span class="err" id="err-oficio"></span>
+      </div>
+
+      <div class="campo">
+        <label for="cp">¿Dónde es la obra?</label>
+        <div class="fila">
+          <input type="text" id="cp" inputmode="numeric" maxlength="5" placeholder="Código postal" autocomplete="postal-code">
+          <div class="prov" id="prov">Escribe el código postal</div>
+        </div>
+        <span class="err" id="err-cp"></span>
+      </div>
+
+      <div class="campo">
+        <label for="cuando">¿Para cuándo?</label>
+        <select id="cuando">
+          <option value="">Elige una opción</option>
+          <option value="urgente">Es urgente, cuanto antes</option>
+          <option value="esta_semana">Esta semana</option>
+          <option value="este_mes">Este mes</option>
+          <option value="sin_prisa">Sin prisa, estoy pidiendo precios</option>
+        </select>
+        <span class="err" id="err-cuando"></span>
+      </div>
+
+      <div class="campo">
+        <label for="nombre">Tu nombre</label>
+        <input type="text" id="nombre" maxlength="80" autocomplete="name">
+        <span class="err" id="err-nombre"></span>
+      </div>
+
+      <div class="campo">
+        <label for="telefono">Tu teléfono</label>
+        <p class="ayuda">Es el que usará el instalador para llamarte. No se publica en ningún sitio.</p>
+        <input type="tel" id="telefono" maxlength="17" autocomplete="tel" placeholder="600 000 000">
+        <span class="err" id="err-telefono"></span>
+      </div>
+
+      <div class="campo">
+        <label for="email">Tu email <span style="font-weight:400;color:var(--gris)">(opcional)</span></label>
+        <input type="email" id="email" maxlength="120" autocomplete="email">
+        <span class="err" id="err-email"></span>
+      </div>
+
+      <div class="consent">
+        <input type="checkbox" id="consent">
+        <p><label for="consent">Acepto que <strong>mi nombre y mi teléfono se entreguen al instalador que acepte mi obra</strong> para que pueda contactarme, y he leído la <a href="/presuvolt/privacidad.html" target="_blank" rel="noopener">política de privacidad</a>.</label></p>
+      </div>
+      <span class="err" id="err-consent" style="margin-top:-14px"></span>
+
+      <button type="submit" class="enviar" id="btn">Enviar mi solicitud</button>
+    </form>
+  </main>
+
+  <section class="ok-panel" id="ok-panel">
+    <div class="tic">✅</div>
+    <h2>Solicitud enviada</h2>
+    <p>Ya está en el tablón de los instaladores de tu provincia. El que la acepte te llamará al teléfono que nos has dado.</p>
+    <p>Si en unos días no te ha llamado nadie, escríbenos a <a href="mailto:jmanuelgonzalezlagar4@gmail.com">jmanuelgonzalezlagar4@gmail.com</a>.</p>
+  </section>
+
+  <footer>
+    <span>PresuVolt · Hecho por un instalador</span>
+    <a href="/presuvolt/privacidad.html">Privacidad</a>
+  </footer>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore, collection, addDoc, doc, setDoc, serverTimestamp }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyARi5AunRzj9_thyzT4S0fV2lJGPueZE48",
+  authDomain: "presuvolt-bc910.firebaseapp.com",
+  projectId: "presuvolt-bc910",
+  storageBucket: "presuvolt-bc910.firebasestorage.app",
+  messagingSenderId: "642017366697",
+  appId: "1:642017366697:web:0bde2c8ef424171de80fb8"
+};
+const db = getFirestore(initializeApp(firebaseConfig));
+
+/* Código postal → provincia (los dos primeros dígitos) */
+const PROV = {"01":"Álava","02":"Albacete","03":"Alicante","04":"Almería","05":"Ávila","06":"Badajoz",
+"07":"Baleares","08":"Barcelona","09":"Burgos","10":"Cáceres","11":"Cádiz","12":"Castellón","13":"Ciudad Real",
+"14":"Córdoba","15":"A Coruña","16":"Cuenca","17":"Girona","18":"Granada","19":"Guadalajara","20":"Gipuzkoa",
+"21":"Huelva","22":"Huesca","23":"Jaén","24":"León","25":"Lleida","26":"La Rioja","27":"Lugo","28":"Madrid",
+"29":"Málaga","30":"Murcia","31":"Navarra","32":"Ourense","33":"Asturias","34":"Palencia","35":"Las Palmas",
+"36":"Pontevedra","37":"Salamanca","38":"Santa Cruz de Tenerife","39":"Cantabria","40":"Segovia","41":"Sevilla",
+"42":"Soria","43":"Tarragona","44":"Teruel","45":"Toledo","46":"Valencia","47":"Valladolid","48":"Bizkaia",
+"49":"Zamora","50":"Zaragoza","51":"Ceuta","52":"Melilla"};
+
+const $ = id => document.getElementById(id);
+const cpInput = $("cp"), provDiv = $("prov");
+
+cpInput.addEventListener("input", () => {
+  cpInput.value = cpInput.value.replace(/\D/g,"").slice(0,5);
+  const p = PROV[cpInput.value.slice(0,2)];
+  if (cpInput.value.length >= 2 && p){ provDiv.textContent = "📍 " + p; provDiv.classList.add("ok"); }
+  else if (cpInput.value.length >= 2){ provDiv.textContent = "Código postal no reconocido"; provDiv.classList.remove("ok"); }
+  else { provDiv.textContent = "Escribe el código postal"; provDiv.classList.remove("ok"); }
+});
+
+const limpiarErrores = () => document.querySelectorAll(".err").forEach(e => e.textContent = "");
+const pon = (id,msg) => { $("err-"+id).textContent = msg; return false; };
+
+function validar(){
+  limpiarErrores();
+  let ok = true;
+  const d = $("descripcion").value.trim();
+  if (d.length < 15) ok = pon("descripcion","Cuéntanos un poco más, con quince caracteres no podemos ayudarte.");
+  if (!document.querySelector('input[name=oficio]:checked')) ok = pon("oficio","Elige el tipo de trabajo.");
+  const cp = cpInput.value;
+  if (!/^\d{5}$/.test(cp) || !PROV[cp.slice(0,2)]) ok = pon("cp","Necesitamos un código postal español de 5 cifras.");
+  if (!$("cuando").value) ok = pon("cuando","Dinos para cuándo lo necesitas.");
+  if ($("nombre").value.trim().length < 2) ok = pon("nombre","¿Cómo te llamas?");
+  const tel = $("telefono").value.trim();
+  if (!/^[+0-9 ]{9,17}$/.test(tel)) ok = pon("telefono","Escribe un teléfono válido, solo cifras y espacios.");
+  const em = $("email").value.trim();
+  if (em && !/^[^@]+@[^@]+\.[^@]+$/.test(em)) ok = pon("email","Ese email no parece correcto.");
+  if (!$("consent").checked) ok = pon("consent","Necesitamos tu permiso para pasarle tus datos al instalador.");
+  return ok;
+}
+
+$("form-obra").addEventListener("submit", async e => {
+  e.preventDefault();
+  const aviso = $("aviso-error");
+  aviso.style.display = "none";
+  if (!validar()){
+    document.querySelector(".err:not(:empty)")?.scrollIntoView({block:"center",behavior:"smooth"});
+    return;
+  }
+  const btn = $("btn");
+  btn.disabled = true; btn.textContent = "Enviando…";
+  try {
+    const cp = cpInput.value;
+    const ref = await addDoc(collection(db,"solicitudes"), {
+      descripcion: $("descripcion").value.trim(),
+      oficio: document.querySelector('input[name=oficio]:checked').value,
+      provincia: PROV[cp.slice(0,2)],
+      cp: cp,
+      cuando: $("cuando").value,
+      estado: "abierta",
+      aceptadaPor: null,
+      creado: serverTimestamp()
+    });
+    await setDoc(doc(db,"solicitudes",ref.id,"contacto","datos"), {
+      nombre: $("nombre").value.trim(),
+      telefono: $("telefono").value.trim(),
+      email: $("email").value.trim()
+    });
+    $("formulario").style.display = "none";
+    $("ok-panel").style.display = "block";
+    window.scrollTo({top:0,behavior:"smooth"});
+  } catch (err){
+    console.error(err);
+    btn.disabled = false; btn.textContent = "Enviar mi solicitud";
+    aviso.textContent = "No hemos podido enviar tu solicitud. Revisa la conexión y prueba otra vez; si sigue fallando, escríbenos a jmanuelgonzalezlagar4@gmail.com.";
+    aviso.style.display = "block";
+  }
+});
+</script>
+</body>
+</html>
