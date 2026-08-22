@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PresuVolt — Presupuestos de instalaciones por nota de voz</title>
+<meta name="description" content="Manda una nota de voz desde la obra y recibe un presupuesto profesional en PDF con materiales, mano de obra y margen. Hecho por un instalador, para instaladores.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --grafito:#1A1C1E;
+    --papel:#FBFBF9;
+    --amarillo:#F5C400;
+    --wa:#1FAF54;
+    --linea:#DDDDD6;
+    --gris:#5B5E63;
+    --rojo-fase:#8B4513;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  @media (prefers-reduced-motion: reduce){
+    html{scroll-behavior:auto}
+    *,*::before,*::after{animation:none!important;transition:none!important}
+  }
+  body{
+    font-family:'Barlow',sans-serif;
+    background:var(--papel);
+    color:var(--grafito);
+    line-height:1.55;
+    font-size:17px;
+  }
+  .wrap{max-width:1060px;margin:0 auto;padding:0 20px}
+
+  /* ---- barra superior tipo cinta de peligro ---- */
+  .cinta{
+    background:repeating-linear-gradient(-45deg,var(--amarillo) 0 14px,var(--grafito) 14px 28px);
+    height:8px;
+  }
+  header{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:18px 0;
+  }
+  .logo{
+    font-family:'Barlow Semi Condensed',sans-serif;
+    font-weight:800;font-size:1.45rem;letter-spacing:.5px;
+    text-transform:uppercase;
+  }
+  .logo span{background:var(--amarillo);padding:0 6px}
+  .beta-tag{
+    font-family:'IBM Plex Mono',monospace;font-size:.75rem;
+    border:1.5px solid var(--grafito);padding:4px 10px;border-radius:3px;
+    text-transform:uppercase;letter-spacing:1px;
+  }
+
+  /* ---- hero ---- */
+  .hero{padding:44px 0 60px;display:grid;grid-template-columns:1.05fr .95fr;gap:48px;align-items:center}
+  h1{
+    font-family:'Barlow Semi Condensed',sans-serif;
+    font-weight:800;font-size:clamp(2.1rem,4.6vw,3.3rem);
+    line-height:1.06;letter-spacing:-.5px;text-transform:uppercase;
+  }
+  h1 mark{background:var(--amarillo);padding:0 8px}
+  .hero p.sub{margin-top:20px;font-size:1.15rem;color:var(--gris);max-width:46ch}
+  .chips{margin-top:18px;display:flex;flex-wrap:wrap;gap:8px}
+  .chip{font-family:'IBM Plex Mono',monospace;font-size:.72rem;text-transform:uppercase;letter-spacing:.5px;border:1.5px solid var(--grafito);border-radius:999px;padding:5px 12px;background:#fff}
+  .hero .ctas{margin-top:30px;display:flex;gap:14px;flex-wrap:wrap}
+  .btn{
+    display:inline-flex;align-items:center;gap:10px;
+    font-family:'Barlow Semi Condensed',sans-serif;font-weight:700;font-size:1.05rem;
+    text-transform:uppercase;letter-spacing:.5px;
+    padding:15px 26px;border-radius:6px;text-decoration:none;
+    border:2px solid var(--grafito);transition:transform .12s ease;
+    cursor:pointer;
+  }
+  .btn:active{transform:scale(.97)}
+  .btn:focus-visible{outline:3px solid var(--amarillo);outline-offset:2px}
+  .btn-wa{background:var(--wa);color:#fff;border-color:var(--wa)}
+  .btn-sec{background:transparent;color:var(--grafito)}
+  .nota-legal{margin-top:14px;font-size:.85rem;color:var(--gris)}
+
+  /* ---- demo nota de voz → presupuesto (elemento firma) ---- */
+  .demo{
+    background:#fff;border:1.5px solid var(--linea);border-radius:12px;
+    box-shadow:0 14px 40px rgba(26,28,30,.09);
+    overflow:hidden;
+  }
+  .demo-chat{padding:20px 20px 14px;background:#F2F0EA;border-bottom:1.5px solid var(--linea)}
+  .voz{
+    background:#DCF5E3;border-radius:14px 14px 14px 4px;
+    padding:12px 16px;display:flex;align-items:center;gap:12px;
+    max-width:330px;
+  }
+  .voz .play{
+    width:34px;height:34px;border-radius:50%;background:var(--wa);
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  }
+  .voz .play::after{content:"";border-left:11px solid #fff;border-top:7px solid transparent;border-bottom:7px solid transparent;margin-left:3px}
+  .onda{display:flex;align-items:center;gap:2.5px;height:26px}
+  .onda i{width:3px;background:var(--wa);border-radius:2px;display:block}
+  .voz .dur{font-family:'IBM Plex Mono',monospace;font-size:.78rem;color:#3a6b4a;margin-left:4px}
+  .voz-txt{font-size:.86rem;color:var(--gris);margin-top:10px;font-style:italic;max-width:40ch}
+  .flecha{
+    text-align:center;padding:10px;font-family:'Barlow Semi Condensed',sans-serif;
+    font-weight:700;font-size:.8rem;text-transform:uppercase;letter-spacing:2px;
+    color:var(--gris);background:#fff;
+  }
+  .presu{padding:6px 22px 20px;font-family:'IBM Plex Mono',monospace;font-size:.82rem}
+  .presu-head{
+    display:flex;justify-content:space-between;border-bottom:2px solid var(--grafito);
+    padding-bottom:8px;margin-bottom:10px;font-weight:600;text-transform:uppercase;font-size:.75rem;letter-spacing:.5px;
+  }
+  .linea-p{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px dashed var(--linea);gap:10px}
+  .linea-p .c{color:var(--gris);flex:1}
+  .linea-p .i{font-weight:500;white-space:nowrap}
+  .total{
+    display:flex;justify-content:space-between;margin-top:12px;
+    background:var(--amarillo);padding:10px 12px;border-radius:4px;
+    font-weight:600;font-size:.95rem;
+  }
+  .pdf-tag{
+    margin-top:14px;display:inline-flex;align-items:center;gap:8px;
+    font-size:.72rem;color:var(--gris);text-transform:uppercase;letter-spacing:1px;
+  }
+  .pdf-tag b{border:1.5px solid var(--rojo-fase);color:var(--rojo-fase);padding:2px 7px;border-radius:3px;font-weight:600}
+
+  /* ---- te suena ---- */
+  .banda{background:var(--grafito);color:var(--papel);padding:64px 0}
+  .banda h2, section h2{
+    font-family:'Barlow Semi Condensed',sans-serif;font-weight:800;
+    font-size:clamp(1.6rem,3.4vw,2.3rem);text-transform:uppercase;letter-spacing:-.3px;
+    margin-bottom:34px;
+  }
+  .banda h2 span{color:var(--amarillo)}
+  .suena{display:grid;grid-template-columns:repeat(3,1fr);gap:26px}
+  .suena article{border-top:3px solid var(--amarillo);padding-top:16px}
+  .suena h3{font-family:'Barlow Semi Condensed',sans-serif;font-weight:700;font-size:1.12rem;margin-bottom:8px;text-transform:uppercase}
+  .suena p{color:#B9BBBE;font-size:.98rem}
+
+  /* ---- cómo funciona ---- */
+  .como{padding:70px 0}
+  .pasos{display:grid;grid-template-columns:repeat(3,1fr);gap:26px}
+  .paso{background:#fff;border:1.5px solid var(--linea);border-radius:10px;padding:26px 24px}
+  .paso .num{
+    font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:.8rem;
+    background:var(--grafito);color:var(--amarillo);
+    display:inline-block;padding:4px 10px;border-radius:3px;margin-bottom:16px;
+  }
+  .paso h3{font-family:'Barlow Semi Condensed',sans-serif;font-weight:700;font-size:1.2rem;margin-bottom:8px}
+  .paso p{color:var(--gris);font-size:.98rem}
+
+  /* ---- tus precios ---- */
+  .precios-sec{padding:0 0 70px}
+  .precios-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:26px}
+  .candado{background:#fff;border:1.5px solid var(--linea);border-radius:10px;padding:26px 24px}
+  .candado h3{font-family:'Barlow Semi Condensed',sans-serif;font-weight:700;font-size:1.2rem;margin-bottom:8px}
+  .candado p{color:var(--gris);font-size:.98rem}
+  .ejemplo-precios{margin-top:16px;font-family:'IBM Plex Mono',monospace;font-size:.8rem;background:#F2F0EA;border-radius:6px;padding:12px 14px}
+  .ejemplo-precios div{display:flex;justify-content:space-between;padding:3px 0;gap:10px}
+  .ejemplo-precios .edit{color:var(--rojo-fase);font-weight:500;white-space:nowrap}
+  .ejemplo-precios .ref{color:var(--gris);white-space:nowrap}
+
+  /* ---- precio ---- */
+  .precio{padding:0 0 70px}
+  .precio-card{
+    background:#fff;border:2px solid var(--grafito);border-radius:12px;
+    padding:36px;display:flex;justify-content:space-between;align-items:center;gap:30px;flex-wrap:wrap;
+  }
+  .precio-card .txt h2{margin-bottom:10px}
+  .precio-card .txt p{color:var(--gris);max-width:52ch}
+  .precio-num{font-family:'Barlow Semi Condensed',sans-serif;text-align:center}
+  .precio-num .tach{text-decoration:line-through;color:var(--gris);font-size:1.1rem}
+  .precio-num .gratis{font-weight:800;font-size:2.6rem;text-transform:uppercase;background:var(--amarillo);padding:2px 14px;display:inline-block;margin-top:4px}
+  .precio-num small{display:block;margin-top:8px;color:var(--gris);font-family:'Barlow',sans-serif;font-size:.85rem}
+
+  /* ---- formulario ---- */
+  .apuntate{background:var(--grafito);color:var(--papel);padding:70px 0}
+  .apuntate .grid{display:grid;grid-template-columns:1fr 1fr;gap:46px;align-items:start}
+  .apuntate h2 span{color:var(--amarillo)}
+  .apuntate p{color:#B9BBBE;margin-bottom:22px}
+  form{display:flex;flex-direction:column;gap:14px}
+  label{font-family:'Barlow Semi Condensed',sans-serif;font-weight:600;font-size:.85rem;text-transform:uppercase;letter-spacing:1px;color:var(--amarillo)}
+  input,select{
+    padding:14px 16px;border-radius:6px;border:1.5px solid #3a3d40;
+    background:#232527;color:var(--papel);font-family:'Barlow',sans-serif;font-size:1rem;
+  }
+  input:focus,select:focus{outline:2px solid var(--amarillo);border-color:var(--amarillo)}
+  .apuntate .btn-wa{justify-content:center;width:100%}
+  .o-divisor{text-align:center;color:#6a6d71;font-family:'IBM Plex Mono',monospace;font-size:.8rem;text-transform:uppercase;letter-spacing:2px;margin:8px 0}
+  .btn-form{
+    background:var(--amarillo);color:var(--grafito);border-color:var(--amarillo);
+    justify-content:center;width:100%;font-family:'Barlow Semi Condensed',sans-serif;
+    font-weight:700;font-size:1.05rem;text-transform:uppercase;letter-spacing:.5px;
+    padding:15px 26px;border-radius:6px;border:2px solid var(--amarillo);cursor:pointer;
+  }
+  .ok-msg{display:none;background:#1e3a28;border:1.5px solid var(--wa);color:#c9f2d6;padding:14px 16px;border-radius:6px;font-size:.95rem}
+
+  footer{padding:34px 0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
+  footer p{font-size:.88rem;color:var(--gris)}
+  footer .firma{font-family:'Barlow Semi Condensed',sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:.9rem}
+
+  @media(max-width:840px){
+    .hero{grid-template-columns:1fr;padding:34px 0 46px}
+    .suena,.pasos{grid-template-columns:1fr}
+    .apuntate .grid{grid-template-columns:1fr}
+    .precios-grid{grid-template-columns:1fr}
+    .precio-card{flex-direction:column;text-align:center}
+  }
+</style>
+</head>
+<body>
+
+<div class="cinta" aria-hidden="true"></div>
+
+<div class="wrap">
+  <header>
+    <div class="logo">Presu<span>Volt</span></div>
+    <div class="beta-tag">Ya en Google Play · Gratis</div>
+  </header>
+
+  <section class="hero">
+    <div>
+      <h1>Del tajo al presupuesto <mark>en 5 minutos</mark>, con una nota de voz</h1>
+      <p class="sub">Cuéntale la obra como se la contarías a un compañero. PresuVolt calcula materiales, mano de obra y margen, y te devuelve un PDF con tu logo listo para enviar al cliente. Sin Excel, sin quedarte hasta las once. Vale para cualquier trabajo eléctrico:</p>
+      <div class="chips" aria-label="Tipos de trabajo">
+        <span class="chip">Instalación unifamiliar</span>
+        <span class="chip">Autoconsumo FV</span>
+        <span class="chip">Bombeo solar</span>
+        <span class="chip">Cuadros y reformas</span>
+        <span class="chip">Averías y avisos</span>
+      </div>
+      <div class="ctas">
+        <a class="btn btn-wa" href="https://play.google.com/store/apps/details?id=io.github.jmanuelgonzalezlagar4_crypto.presuvolt" target="_blank" rel="noopener">Descargar gratis en Google Play</a>
+        <a class="btn btn-sec" href="https://wa.me/34626639464?text=Hola%2C%20tengo%20una%20duda%20sobre%20PresuVolt" target="_blank" rel="noopener">Preguntar por WhatsApp</a>
+      </div>
+      <p class="nota-legal">Gratis, sin cuotas ni suscripciones. Y tus precios solo los ves tú.</p>
+    </div>
+
+    <div class="demo" aria-label="Ejemplo: una nota de voz se convierte en un presupuesto">
+      <div class="demo-chat">
+        <div class="voz">
+          <div class="play" aria-hidden="true"></div>
+          <div class="onda" aria-hidden="true">
+            <i style="height:8px"></i><i style="height:16px"></i><i style="height:22px"></i><i style="height:12px"></i><i style="height:19px"></i><i style="height:9px"></i><i style="height:15px"></i><i style="height:23px"></i><i style="height:11px"></i><i style="height:17px"></i><i style="height:8px"></i><i style="height:14px"></i><i style="height:20px"></i><i style="height:10px"></i>
+          </div>
+          <span class="dur">0:47</span>
+        </div>
+        <p class="voz-txt">«Chalet en Villaviciosa, autoconsumo de 5 kW con 10 paneles de 550, inversor híbrido, tirada de unos 25 metros, cuadro nuevo con protecciones y legalización incluida...»</p>
+      </div>
+      <div class="flecha">▼ &nbsp;PresuVolt lo convierte en&nbsp; ▼</div>
+      <div class="presu">
+        <div class="presu-head"><span>Presupuesto 2026-081</span><span>Instalaciones J. García</span></div>
+        <div class="linea-p"><span class="c">10× Módulo FV 550 W mono</span><span class="i">1.240,00 €</span></div>
+        <div class="linea-p"><span class="c">Inversor híbrido Deye 5 kW</span><span class="i">1.150,00 €</span></div>
+        <div class="linea-p"><span class="c">Estructura coplanar + anclajes</span><span class="i">420,00 €</span></div>
+        <div class="linea-p"><span class="c">Cableado, canalización y cuadro CA/CC</span><span class="i">585,00 €</span></div>
+        <div class="linea-p"><span class="c">Mano de obra (2 op. × 2 jornadas)</span><span class="i">960,00 €</span></div>
+        <div class="linea-p"><span class="c">Legalización y tramitación RD 244/2019</span><span class="i">350,00 €</span></div>
+        <div class="total"><span>TOTAL (IVA no incl.)</span><span>4.705,00 €</span></div>
+        <div class="pdf-tag"><b>PDF</b> con tu logo · desglose editable · margen aplicado: 28 %</div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<section class="banda">
+  <div class="wrap">
+    <h2>¿Te suena<span>?</span></h2>
+    <div class="suena">
+      <article>
+        <h3>Presupuestos a las once de la noche</h3>
+        <p>Terminas la jornada y todavía te queda pelearte con el Excel o el Word para pasar tres presupuestos que te pidieron esta semana.</p>
+      </article>
+      <article>
+        <h3>Obras que se enfrían</h3>
+        <p>El cliente pidió presupuesto a tres empresas. El primero que se lo manda, se la lleva. Si tardas cuatro días, ya has perdido.</p>
+      </article>
+      <article>
+        <h3>Material que no cobras</h3>
+        <p>Siete avisos en una mañana: un magnetotérmico aquí, tres metros de manguera allá. Al pasar la cuenta, la mitad no la apuntaste y ese material lo has regalado.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section class="como">
+  <div class="wrap">
+    <h2>Cómo funciona</h2>
+    <div class="pasos">
+      <div class="paso">
+        <span class="num">PASO 1</span>
+        <h3>Graba la nota de voz</h3>
+        <p>Desde la furgoneta, nada más salir de la visita. Una reforma, un autoconsumo, un bombeo solar con sus metros de pozo y su caudal — descríbelo con tus palabras.</p>
+      </div>
+      <div class="paso">
+        <span class="num">PASO 2</span>
+        <h3>PresuVolt hace los números</h3>
+        <p>Cruza tu base de precios (o la nuestra de referencia), calcula mano de obra por jornadas y aplica el margen que tú le digas.</p>
+      </div>
+      <div class="paso">
+        <span class="num">PASO 3</span>
+        <h3>Revisa y envía el PDF</h3>
+        <p>Te llega el borrador al móvil. Ajustas lo que quieras, le das a enviar y el cliente tiene su presupuesto profesional el mismo día.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="precios-sec">
+  <div class="wrap">
+    <h2>Tus precios, tu base de datos</h2>
+    <div class="precios-grid">
+      <div class="candado">
+        <h3>Cada uno trabaja con sus números</h3>
+        <p>PresuVolt trae una base de precios genérica de referencia para que funcione desde el primer día — y está marcada claramente como genérica, sin engaños. Tú la ajustas a lo tuyo una sola vez y a partir de ahí presupuesta siempre con tus marcas, tus proveedores y tu mano de obra. Si montas Deye, tus Deye. Si montas Growatt, tus Growatt.</p>
+        <div class="ejemplo-precios">
+          <div><span>Inversor Deye SUN-5K</span><span class="edit">1.150 € ✎ tu precio</span></div>
+          <div><span>Inversor Deye SUN-6K</span><span class="edit">1.290 € ✎ tu precio</span></div>
+          <div><span>Módulo 550 W mono</span><span class="ref">124 € · referencia</span></div>
+          <div><span>Hora de operario</span><span class="edit">30 € ✎ tu precio</span></div>
+        </div>
+      </div>
+      <div class="candado">
+        <h3>Nadie ve tus precios. Nadie.</h3>
+        <p>Tus tarifas son tu ventaja frente a la competencia, y lo sabemos porque nos pasa lo mismo. Tu base de precios es privada: no la ve ningún otro usuario, no se compara entre empresas, no se vende a nadie y no se usa para nada que no sea calcular tus presupuestos.</p>
+        <p style="margin-top:12px">Además es tuya de verdad: la exportas a Excel o la borras entera cuando quieras, sin dar explicaciones.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="precio">
+  <div class="wrap">
+    <div class="precio-card">
+      <div class="txt">
+        <h2>Es gratis. Sin trampa.</h2>
+        <p>Esto lo monta un compañero del gremio, no una startup: llevo años haciendo instalaciones y perdiendo tardes con presupuestos, igual que tú. Ya está publicada en Google Play y es gratis. No pido tarjeta, no hay permanencia, no vendo tus datos. Lo que busco son instaladores que la usen en obras de verdad y me digan qué falta y qué sobra: las próximas versiones salen de ahí.</p>
+      </div>
+      <div class="precio-num">
+        <div class="gratis">Gratis</div>
+        <small>sin cuotas · sin permanencia · tus datos son tuyos</small>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="apuntate" id="apuntate">
+  <div class="wrap">
+    <div class="grid">
+      <div>
+        <h2>Descárgala <span>gratis</span></h2>
+        <p>Está en Google Play, gratis y sin cuotas. Si prefieres preguntar antes de instalarla, escríbeme por WhatsApp o déjame tus datos aquí y te contesto yo.</p>
+        <a class="btn btn-wa" href="https://play.google.com/store/apps/details?id=io.github.jmanuelgonzalezlagar4_crypto.presuvolt" target="_blank" rel="noopener">Descargar en Google Play</a>
+        <p class="o-divisor">— o si no —</p>
+      </div>
+      <div>
+        <form id="beta-form" action="https://formsubmit.co/ajax/jmanuelgonzalezlagar4@gmail.com" method="POST">
+          <input type="hidden" name="_subject" value="Contacto desde la web de PresuVolt">
+          <input type="hidden" name="_template" value="table">
+          <input type="hidden" name="_captcha" value="false">
+          <input type="text" name="_honey" style="display:none" tabindex="-1" autocomplete="off">
+          <label for="nombre">Nombre</label>
+          <input type="text" id="nombre" name="nombre" required autocomplete="name" placeholder="Tu nombre">
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" required autocomplete="email" placeholder="tu@correo.com">
+          <label for="perfil">¿A qué te dedicas?</label>
+          <select id="perfil" name="perfil" required>
+            <option value="" disabled selected>Elige una opción</option>
+            <option>Instalador fotovoltaico</option>
+            <option>Electricista</option>
+            <option>Clima / aerotermia</option>
+            <option>Fontanería / otros gremios</option>
+            <option>Empresa instaladora (varios operarios)</option>
+          </select>
+          <label for="dolor">¿Qué te quita más tiempo o dinero?</label>
+          <select id="dolor" name="mayor_dolor" required>
+            <option value="" disabled selected>Elige una opción</option>
+            <option>Hacer presupuestos</option>
+            <option>Apuntar los partes de trabajo (y dejarme material sin cobrar)</option>
+            <option>Las dos cosas por igual</option>
+          </select>
+          <label for="volumen">¿Cuántos presupuestos haces al mes?</label>
+          <select id="volumen" name="presupuestos_mes" required>
+            <option value="" disabled selected>Elige una opción</option>
+            <option>Menos de 5</option>
+            <option>Entre 5 y 15</option>
+            <option>Más de 15</option>
+          </select>
+          <button type="submit" class="btn-form">Enviar</button>
+          <div class="ok-msg" id="ok-msg">¡Recibido! Te contesto en cuanto pueda.</div>
+        </form>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="wrap">
+  <footer>
+    <p class="firma">Hecho por un instalador, no por una startup.</p>
+    <p>PresuVolt · 2026 · Escríbenos: jmanuelgonzalezlagar4@gmail.com</p>
+  </footer>
+</div>
+
+<script>
+  // Envío del formulario sin salir de la página (formsubmit.co)
+  const form = document.getElementById('beta-form');
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = form.querySelector('.btn-form');
+    btn.disabled = true; btn.textContent = 'Enviando…';
+    try {
+      const res = await fetch(form.action, {
+        method: 'POST',
+        body: new FormData(form),
+        headers: { 'Accept': 'application/json' }
+      });
+      if (res.ok) {
+        form.reset();
+        document.getElementById('ok-msg').style.display = 'block';
+        btn.textContent = 'Enviado ✓';
+      } else { throw new Error(); }
+    } catch {
+      btn.disabled = false; btn.textContent = 'Enviar';
+      alert('No se pudo enviar. Prueba por WhatsApp o inténtalo de nuevo.');
+    }
+  });
+</script>
+
+</body>
+</html>
