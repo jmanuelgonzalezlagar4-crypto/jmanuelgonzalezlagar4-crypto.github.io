@@ -1,5 +1,5 @@
 // Service worker: app shell en caché y mapas guardados para usar sin cobertura
-const SHELL = 'arq-shell-v1';
+const SHELL = 'arq-shell-v2';
 const TILES = 'arq-tiles';
 const FILES = ['./', 'index.html', 'app.js', 'data.enc.json', 'manifest.json', 'icon.svg', 'icon-192.png', 'icon-512.png', 'lib/leaflet.js', 'lib/leaflet.css', 'lib/geotiff.js', 'score.js'];
 

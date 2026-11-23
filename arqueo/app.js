@@ -283,7 +283,7 @@
   /* ---------------- ruta del día ---------------- */
   function routeSheet() {
     sheet(`<button class="x" data-close aria-label="Cerrar">&times;</button><h2>Ruta del día</h2>
-    <p class="small">Elige los mejores candidatos cerca de ${gps ? 'tu posición' : 'el centro del mapa'} y los ordena para no dar vueltas. Se abre en Google Maps con todas las paradas.</p>
+    <p class="small">Elige los mejores candidatos cerca ${gps ? 'de tu posición' : 'del centro del mapa'} y los ordena para no dar vueltas. Se abre en Google Maps con todas las paradas.</p>
     <div class="mute">Paradas</div><div class="seg" id="rn">${[4, 6, 8].map(n => `<button data-n="${n}" class="${n === 6 ? 'on' : ''}">${n}</button>`).join('')}</div>
     <div class="mute">Radio</div><div class="seg" id="rr">${[3, 6, 10].map(n => `<button data-r="${n}" class="${n === 6 ? 'on' : ''}">${n} km</button>`).join('')}</div>
     <label class="ck"><input type="checkbox" id="rnv" checked> Saltar los ya visitados o descartados</label>
@@ -375,7 +375,21 @@
     $('#sheet').classList.remove('on');
     if (!('caches' in window)) { toast('Este navegador no permite guardar mapas.'); return; }
     const tiles = tilesFor(bounds, z0, z1), urls = [];
-    for (const id of ids) { const l = BASES[id].mk(); l._map = map; if (l.wmsParams) { l._crs = map.options.crs; l._wmsVersion = parseFloat(l.wmsParams.version); l.wmsParams.srs = l._crs.code; } for (const t of tiles) { const p = L.point(t.x, t.y); p.z = t.z; try { urls.push(l.getTileUrl(p)); } catch (e) { } } }
+    for (const id of ids) {
+      const l = BASES[id].mk(), crs = map.options.crs;
+      for (const t of tiles) {
+        try {
+          if (l.wmsParams) {
+            const wp = Object.assign({}, l.wmsParams, { srs: crs.code });
+            const nw = map.unproject(L.point(t.x * 256, t.y * 256), t.z), se = map.unproject(L.point(t.x * 256 + 256, t.y * 256 + 256), t.z);
+            const b = L.bounds(crs.project(nw), crs.project(se));
+            urls.push(l._url + L.Util.getParamString(wp, l._url, l.options.uppercase) + '&bbox=' + [b.min.x, b.min.y, b.max.x, b.max.y].join(','));
+          } else if (t.z <= (l.options.maxNativeZoom || 20)) {
+            urls.push(L.Util.template(l._url, { z: t.z, x: t.x, y: t.y, s: 'a', r: '' }));
+          }
+        } catch (e) { }
+      }
+    }
     if (rel) for (const c of C) if (bounds.contains([c.a, c.o]) && visible(c)) { const R = 350, dLat = R / 111200, dLon = R / (111200 * Math.cos(c.a * Math.PI / 180)); urls.push(`https://servicios.idee.es/wcs-inspire/mdt?service=WCS&version=2.0.1&request=GetCoverage&CoverageId=Elevacion4258_5&subset=Lat(${(c.a - dLat).toFixed(5)},${(c.a + dLat).toFixed(5)})&subset=Long(${(c.o - dLon).toFixed(5)},${(c.o + dLon).toFixed(5)})&format=image/tiff`); }
     const cache = await caches.open('arq-tiles'); let done = 0, fail = 0; const q = urls.slice();
     const work = async () => { while (q.length) { const u = q.shift(); try { if (!(await cache.match(u))) { const r = await fetch(u, { mode: u.includes('wcs') ? 'cors' : 'no-cors' }); await cache.put(u, r); } } catch (e) { fail++; } done++; toast(`Guardando ${done} / ${urls.length}${fail ? ' · fallos ' + fail : ''}`, 60000); } };
