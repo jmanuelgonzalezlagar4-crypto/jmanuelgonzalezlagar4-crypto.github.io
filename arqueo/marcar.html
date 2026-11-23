@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Marcar un punto</title>
+<link rel="stylesheet" href="lib/leaflet.css">
+<style>
+html,body,#map{margin:0;height:100%;font:14px system-ui,sans-serif}
+#box{position:absolute;z-index:1000;left:10px;right:10px;top:10px;background:#fff;border-radius:10px;padding:10px 12px;box-shadow:0 2px 8px rgba(0,0,0,.3);max-width:520px}
+#box b{color:#5b2a86}.seg{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}.seg button{border:1px solid #bbb;background:#f5f5f5;border-radius:6px;padding:5px 8px;cursor:pointer}.seg button.on{background:#5b2a86;color:#fff;border-color:#5b2a86}
+#out{margin-top:6px;color:#333}
+</style></head><body>
+<div id="map"></div>
+<div id="box"><b>Toca en el mapa donde está la cueva.</b> Puedes mover el punto arrastrándolo. Cambia el fondo para orientarte.
+<div class="seg" id="seg"></div><div id="out">Aún no has marcado nada.</div></div>
+<script src="lib/leaflet.js?v=6"></script>
+<script>
+const map=L.map('map',{maxZoom:21}).setView([38.612,-6.57],14);
+const wms=(u,l,nz)=>L.tileLayer.wms(u,{layers:l,format:'image/jpeg',version:'1.1.1',maxZoom:21,maxNativeZoom:nz,attribution:'IGN-CNIG'});
+const B={
+ 'Ortofoto':L.tileLayer('https://www.ign.es/wmts/pnoa-ma?layer=OI.OrthoimageCoverage&style=default&tilematrixset=GoogleMapsCompatible&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image/jpeg&TileMatrix={z}&TileCol={x}&TileRow={y}',{maxZoom:21,maxNativeZoom:19,attribution:'PNOA IGN'}),
+ 'Relieve LiDAR':wms('https://wms-mapa-lidar.idee.es/lidar','EL.GridCoverage',17),
+ 'Vuelo 1956':wms('https://www.ign.es/wms/pnoa-historico','AMS_1956-1957',17),
+ 'Mapa IGN':L.tileLayer('https://www.ign.es/wmts/mapa-raster?layer=MTN&style=default&tilematrixset=GoogleMapsCompatible&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image/jpeg&TileMatrix={z}&TileCol={x}&TileRow={y}',{maxZoom:21,maxNativeZoom:17,attribution:'IGN'})
+};
+let cur=null;const seg=document.getElementById('seg');
+for(const k in B){const b=document.createElement('button');b.textContent=k;b.onclick=()=>{if(cur)map.removeLayer(cur);cur=B[k].addTo(map);seg.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b))};seg.appendChild(b)}
+seg.firstChild.click();
+window.MARK=null;let mk=null;
+const show=ll=>{window.MARK={lat:+ll.lat.toFixed(6),lon:+ll.lng.toFixed(6),zoom:map.getZoom(),t:Date.now()};document.getElementById('out').innerHTML=`Marcado: <b>${MARK.lat}, ${MARK.lon}</b>. Cuando lo tengas, dímelo en el chat.`};
+map.on('click',e=>{if(mk)mk.setLatLng(e.latlng);else{mk=L.marker(e.latlng,{draggable:true}).addTo(map);mk.on('dragend',()=>show(mk.getLatLng()))}show(e.latlng)});
+</script></body></html>
