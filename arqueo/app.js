@@ -15,7 +15,7 @@
   const reS = /villar|castillej|castro\b|paredon|paredes|paredita|paredón|torrej|torrecilla|torre agui|tejar|tejares|\bteja\b|moro\b|\bmora\b|romanos|calzada|atalaya|palacio quemado|casas viejas|malcasar|\bcasar\b|cristianos|siete piedras|los hornos|tesoro|almenas|castillo de guadajira|cuarto del castillo|barreras del castillo|sierra castillo|cerro del castillo|el castillo|fuente castillo|villarreala|villagordo|\bcastro\b/i;
 
   let D = null, C = [], map, layers = {}, gps = null, gpsMarker = null, relief = null;
-  let state = Object.assign({ base: 'lidar', cmp: 'none', op: 60, minS: 0, show: [1, 1, 1], known: 1, roads: 1, veto: 1, mine: 1, cat: 0 }, LS.get('state', {}));
+  let state = Object.assign({ base: 'lidar', cmp: 'none', op: 60, minS: 0, show: [1, 1, 1], known: 1, roads: 1, veto: 1, mine: 1, cat: 0, det: 0, detOp: 85 }, LS.get('state', {}));
   const marks = LS.get('marks', {});
   const mine = LS.get('mine', []);
   const saveState = () => LS.set('state', state);
@@ -57,14 +57,15 @@
   }
 
   /* ---------------- capas ---------------- */
-  const wms = (url, lay, extra) => L.tileLayer.wms(url, Object.assign({ layers: lay, format: 'image/jpeg', transparent: false, version: '1.1.1', maxZoom: 20, attribution: 'IGN · CNIG (CC BY 4.0)' }, extra || {}));
+  const wms = (url, lay, nz, extra) => L.tileLayer.wms(url, Object.assign({ layers: lay, format: 'image/jpeg', transparent: false, version: '1.1.1', maxZoom: 21, maxNativeZoom: nz || 18, attribution: 'IGN · CNIG (CC BY 4.0)' }, extra || {}));
+  const wmts = (svc, layer, nz) => L.tileLayer(`https://www.ign.es/wmts/${svc}?layer=${layer}&style=default&tilematrixset=GoogleMapsCompatible&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image/jpeg&TileMatrix={z}&TileCol={x}&TileRow={y}`, { maxZoom: 21, maxNativeZoom: nz, attribution: 'IGN · CNIG (CC BY 4.0)' });
   const BASES = {
-    lidar: { n: 'Relieve LiDAR', mk: () => wms('https://wms-mapa-lidar.idee.es/lidar', 'EL.GridCoverage') },
-    orto: { n: 'Ortofoto actual', mk: () => wms('https://www.ign.es/wms-inspire/pnoa-ma', 'OI.OrthoimageCoverage') },
-    v56: { n: 'Vuelo 1956', mk: () => wms('https://www.ign.es/wms/pnoa-historico', 'AMS_1956-1957') },
-    v80: { n: 'Vuelo 1973-86', mk: () => wms('https://www.ign.es/wms/pnoa-historico', 'Interministerial_1973-1986') },
-    mdt: { n: 'Altitudes', mk: () => wms('https://servicios.idee.es/wms-inspire/mdt', 'EL.ElevationGridCoverage') },
-    mapa: { n: 'Mapa IGN', mk: () => L.tileLayer('https://www.ign.es/wmts/mapa-raster?layer=MTN&style=default&tilematrixset=GoogleMapsCompatible&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image/jpeg&TileMatrix={z}&TileCol={x}&TileRow={y}', { maxZoom: 20, maxNativeZoom: 17, attribution: 'IGN' }) }
+    lidar: { n: 'Relieve LiDAR', mk: () => wms('https://wms-mapa-lidar.idee.es/lidar', 'EL.GridCoverage', 17) },
+    orto: { n: 'Ortofoto actual', mk: () => wmts('pnoa-ma', 'OI.OrthoimageCoverage', 19) },
+    v56: { n: 'Vuelo 1956', mk: () => wms('https://www.ign.es/wms/pnoa-historico', 'AMS_1956-1957', 17) },
+    v80: { n: 'Vuelo 1973-86', mk: () => wms('https://www.ign.es/wms/pnoa-historico', 'Interministerial_1973-1986', 17) },
+    mdt: { n: 'Altitudes', mk: () => wms('https://servicios.idee.es/wms-inspire/mdt', 'EL.ElevationGridCoverage', 16) },
+    mapa: { n: 'Mapa IGN', mk: () => L.tileLayer('https://www.ign.es/wmts/mapa-raster?layer=MTN&style=default&tilematrixset=GoogleMapsCompatible&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image/jpeg&TileMatrix={z}&TileCol={x}&TileRow={y}', { maxZoom: 21, maxNativeZoom: 17, attribution: 'IGN' }) }
   };
   let baseL = null, cmpL = null, catL = null;
   function setBase() { if (baseL) map.removeLayer(baseL); baseL = BASES[state.base].mk().addTo(map); baseL.bringToBack(); setCmp(); }
@@ -105,7 +106,8 @@
     <div class="chips"><span class="chip l${c.l}">${LEVEL[c.l]}</span><span class="chip" style="background:${scoreCol(c.s)};color:#fff">${c.s} / 100</span><span class="chip lm">${SRC[c.src]}</span></div>
     <h2>${esc(c.t)}</h2>
     <div class="mute">${c.par ? 'Paraje ' + esc(c.par) + ' · ' : ''}${fmt(c.a, c.o)} · nº ${c.id}${g != null ? ' · a ' + (g / 1000).toFixed(g < 10000 ? 1 : 0) + ' km de ti' : ''}</div>
-    <div class="row"><button class="pri" data-relief="${c.id}">Ver relieve local marcado</button><button data-zoom="${c.a},${c.o}">Acercar</button></div>
+    <div class="row"><button class="pri" data-relief="${c.id}">Relieve marcado</button><button class="pri" data-v3="${c.id}">Vista 3D y a pie</button></div>
+    <div class="row"><button data-zoom="${c.a},${c.o}">Acercar</button><button data-gsat="${c.a},${c.o}">Google satélite</button><button data-gsv="${c.a},${c.o}">Street View</button></div>
     <div class="seg">${Object.entries(BASES).slice(0, 4).map(([id, b]) => `<button data-base="${id}" class="${state.base === id ? 'on' : ''}">${b.n}</button>`).join('')}</div>
     <h3>Por qué está marcado</h3>
     <ul class="why">${w.map(([t, p]) => `<li><span>${esc(t)}</span><b class="${p < 0 ? 'neg' : ''}">${p > 0 ? '+' : ''}${p}</b></li>`).join('')}</ul>
@@ -137,70 +139,47 @@
   /* ---------------- relieve local LiDAR (MDT 5 m del IGN), calculado aquí ---------------- */
   async function showRelief(c) {
     if (!window.GeoTIFF) { toast('No se pudo cargar el lector del relieve.'); return; }
-    const R = 350; // metros alrededor
-    const dLat = R / 111200, dLon = R / (111200 * Math.cos(c.a * Math.PI / 180));
-    const s = c.a - dLat, n = c.a + dLat, w = c.o - dLon, e = c.o + dLon;
-    const url = `https://servicios.idee.es/wcs-inspire/mdt?service=WCS&version=2.0.1&request=GetCoverage&CoverageId=Elevacion4258_5&subset=Lat(${s.toFixed(5)},${n.toFixed(5)})&subset=Long(${w.toFixed(5)},${e.toFixed(5)})&format=image/tiff`;
     toast('Calculando el relieve local…', 20000);
     try {
-      const buf = await (await fetch(url)).arrayBuffer();
-      const im = await (await GeoTIFF.fromArrayBuffer(buf)).getImage();
-      const W = im.getWidth(), H = im.getHeight(), bb = im.getBoundingBox();
-      const z = (await im.readRasters())[0];
-      const px = (bb[3] - bb[1]) / H * 111200;
-      const r = Math.max(4, Math.round(100 / px));
-      // media local (integral) y relieve local
-      const S = new Float64Array((W + 1) * (H + 1));
-      for (let y = 0; y < H; y++) { let rs = 0; for (let x = 0; x < W; x++) { const v = z[y * W + x]; rs += (v > -100 ? v : 0); S[(y + 1) * (W + 1) + x + 1] = S[y * (W + 1) + x + 1] + rs; } }
-      const lrm = new Float32Array(W * H);
-      for (let y = 0; y < H; y++) {
-        const y0 = Math.max(0, y - r), y1 = Math.min(H, y + r + 1);
-        for (let x = 0; x < W; x++) {
-          const x0 = Math.max(0, x - r), x1 = Math.min(W, x + r + 1);
-          const A = (i, j) => i * (W + 1) + j;
-          const mean = (S[A(y1, x1)] - S[A(y0, x1)] - S[A(y1, x0)] + S[A(y0, x0)]) / ((y1 - y0) * (x1 - x0));
-          lrm[y * W + x] = z[y * W + x] - mean;
-        }
-      }
-      // componente que contiene el centro (o la más cercana) por encima/debajo de 0,3 m
-      const sg = c.f.an ? c.f.an.sg : 1, thr = 0.3;
-      const cx = Math.floor(W / 2), cy = Math.floor(H / 2);
-      let seed = -1, best = 1e9;
-      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { if (lrm[y * W + x] * sg > thr) { const d = (x - cx) ** 2 + (y - cy) ** 2; if (d < best) { best = d; seed = y * W + x; } } }
-      const mask = new Uint8Array(W * H);
-      if (seed >= 0 && best < (60 / px) ** 2) {
-        const st = [seed]; mask[seed] = 1;
-        while (st.length) { const k = st.pop(), x = k % W, y = (k - x) / W; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = x + dx, ny = y + dy; if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue; const j = ny * W + nx; if (!mask[j] && lrm[j] * sg > thr) { mask[j] = 1; st.push(j); } } }
-      }
-      // sombreado multidireccional + relieve local en color
-      const cv = document.createElement('canvas'); cv.width = W; cv.height = H; const ctx = cv.getContext('2d'); const img = ctx.createImageData(W, H);
-      const dirs = [[1, 1], [-1, 1], [1, -1], [-1, -1], [0, 1], [1, 0]];
-      for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
-        const i = y * W + x;
-        const gx = (z[i + 1] - z[i - 1]) / (2 * px) * 3, gy = (z[i + W] - z[i - W]) / (2 * px) * 3;
-        let sh = 0; for (const [lx, ly] of dirs) sh += Math.max(0, (1 + (-gx * lx - gy * ly) * 0.7) / Math.sqrt(1 + gx * gx + gy * gy));
-        sh = Math.min(1, sh / dirs.length);
-        const v = Math.max(-2, Math.min(2, lrm[i])) / 2 * 0.75;
-        let R0 = 225 * sh + 20, G0 = 220 * sh + 20, B0 = 210 * sh + 20;
-        if (v > 0) { R0 = R0 * (1 - v) + 200 * v; G0 = G0 * (1 - v * .7); B0 = B0 * (1 - v * .8); }
-        else { R0 = R0 * (1 + v * .8); G0 = G0 * (1 + v * .4); B0 = B0 * (1 + v) - 190 * v; }
-        if (mask[i]) { R0 = R0 * .45 + 255 * .55; G0 = G0 * .45 + 150 * .55; B0 = B0 * .45; }
-        const k = i * 4; img.data[k] = R0; img.data[k + 1] = G0; img.data[k + 2] = B0; img.data[k + 3] = 215;
-      }
-      ctx.putImageData(img, 0, 0);
+      const [s0, n0, w0, e0] = ARQT.boxAround(c.a, c.o, 350);
+      const d = await ARQT.fetchDem(s0, n0, w0, e0);
+      const an = ARQT.analyze(d, c.f.an ? c.f.an.sg : 1, c.a, c.o);
+      const cv = ARQT.reliefCanvas(d, an, 4, { alpha: 230 });
+      const bb = d.bb;
       if (relief) map.removeLayer(relief);
       relief = L.layerGroup().addTo(map);
-      L.imageOverlay(cv.toDataURL(), [[bb[1], bb[0]], [bb[3], bb[2]]], { opacity: 0.9, interactive: false, pane: 'relief' }).addTo(relief);
+      L.imageOverlay(cv.toDataURL(), [[bb[1], bb[0]], [bb[3], bb[2]]], { opacity: 0.92, interactive: false, pane: 'relief' }).addTo(relief);
       L.rectangle([[bb[1], bb[0]], [bb[3], bb[2]]], { color: '#fff', weight: 1, fill: false, dashArray: '4 4', interactive: false }).addTo(relief);
       map.setView([c.a, c.o], 17);
       $('#sheet').classList.remove('on');
-      let n = 0; for (let i = 0; i < mask.length; i++) n += mask[i];
-      const msg = n ? `Relieve local: rojo = más alto que su entorno, azul = más bajo. En naranja, la forma detectada (${Math.round(n * px * px)} m²).` : 'Relieve local: rojo = más alto que su entorno, azul = más bajo. Aquí no hay una forma clara en el relieve; el punto viene del modelo predictivo.';
+      const msg = an.area ? `Relieve local: rojo = más alto que su entorno, azul = más bajo. En naranja, la forma detectada (${an.area} m²).` : 'Relieve local: rojo = más alto que su entorno, azul = más bajo. Aquí no hay una forma clara en el relieve; el punto viene del modelo predictivo.';
       toast(msg + ' Toca el mapa para quitarlo.', 9000);
       map.once('click', () => { if (relief) { map.removeLayer(relief); relief = null; } });
     } catch (err) {
       toast('No se pudo descargar el relieve (¿sin cobertura?). Si guardaste la zona antes, se usará la copia.');
     }
+  }
+
+  /* ---------------- relieve de detalle para lo que se ve en pantalla ---------------- */
+  let detL = null, detBusy = false, detKey = '';
+  async function detailRelief() {
+    if (!state.det) { if (detL) { map.removeLayer(detL); detL = null; } return; }
+    if (map.getZoom() < 15) { if (detL) { map.removeLayer(detL); detL = null; } return; }
+    const b = map.getBounds().pad(0.15), key = b.toBBoxString();
+    if (key === detKey || detBusy) return;
+    const wM = map.distance(b.getSouthWest(), b.getSouthEast()), hM = map.distance(b.getSouthWest(), b.getNorthWest());
+    if (wM * hM > 9e6) { toast('Acércate un poco más para el relieve de detalle.'); return; }
+    detBusy = true; detKey = key;
+    try {
+      const d = await ARQT.fetchDem(b.getSouth(), b.getNorth(), b.getWest(), b.getEast());
+      const an = ARQT.analyze(d);
+      const k = Math.max(2, Math.min(5, Math.round(1400 / Math.max(d.W, d.H))));
+      const cv = ARQT.reliefCanvas(d, an, k, { alpha: 255 });
+      const bb = d.bb, nl = L.imageOverlay(cv.toDataURL(), [[bb[1], bb[0]], [bb[3], bb[2]]], { opacity: state.detOp / 100, interactive: false, pane: 'relief' }).addTo(map);
+      if (detL) map.removeLayer(detL);
+      detL = nl;
+    } catch (e) { toast('No se pudo calcular el relieve de detalle (¿sin cobertura?).'); detKey = ''; }
+    detBusy = false;
   }
 
   /* ---------------- hojas ---------------- */
@@ -215,7 +194,7 @@
   }
 
   document.addEventListener('click', e => {
-    const t = e.target.closest('[data-close],[data-mark],[data-zoom],[data-go],[data-base],[data-cmp],[data-delmine],[data-relief],[data-nav],[data-pat],[data-copy]'); if (!t) return;
+    const t = e.target.closest('[data-close],[data-mark],[data-zoom],[data-go],[data-base],[data-cmp],[data-delmine],[data-relief],[data-nav],[data-pat],[data-copy],[data-v3],[data-gsat],[data-gsv],[data-v3here]'); if (!t) return;
     const d = t.dataset;
     if (d.close !== undefined) $('#sheet').classList.remove('on');
     if (d.mark !== undefined) { const id = d.id; if (d.mark) marks[id] = d.mark; else delete marks[id]; LS.set('marks', marks); drawCands(); openCand(C[id - 1]); }
@@ -225,6 +204,10 @@
     if (d.cmp) { state.cmp = d.cmp; saveState(); setCmp(); layersSheet(); }
     if (d.delmine) { mine.splice(+d.delmine, 1); LS.set('mine', mine); drawMine(); $('#sheet').classList.remove('on'); }
     if (d.relief) showRelief(C[+d.relief - 1]);
+    if (d.v3) { const c = C[+d.v3 - 1]; ARQ3D.open({ a: c.a, o: c.o, sg: c.f.an ? c.f.an.sg : 1, title: c.t }); }
+    if (d.v3here !== undefined) { const m = map.getCenter(); $('#sheet').classList.remove('on'); ARQ3D.open({ a: m.lat, o: m.lng, title: 'Centro del mapa' }); }
+    if (d.gsat) { const [a, o] = d.gsat.split(','); window.open(`https://www.google.com/maps/@?api=1&map_action=map&center=${a},${o}&zoom=19&basemap=satellite`, '_blank'); }
+    if (d.gsv) { const [a, o] = d.gsv.split(','); window.open(`https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${a},${o}`, '_blank'); }
     if (d.nav) { const [a, o] = d.nav.split(','); window.open(`https://www.google.com/maps/dir/?api=1&destination=${a},${o}`, '_blank'); }
     if (d.pat) { const c = C[+d.pat - 1]; sheet(`<button class="x" data-close aria-label="Cerrar">&times;</button><h2>Avisar a Patrimonio</h2><p class="small">Si al visitarlo ves restos claros, comunícalo a la Junta. Así queda protegido y a tu nombre como descubridor. Tienes el texto listo para copiar y enviar por registro o correo al Servicio de Arqueología de la Dirección General de Patrimonio Cultural.</p><textarea id="pt" style="min-height:260px">${esc(patrimonioText(c))}</textarea><div class="row"><button class="pri" data-copy="pt">Copiar texto</button><button data-go="${c.id}">Volver a la ficha</button></div><p class="mute small">Antes de enviarlo revisa el texto y añade fotos. Información oficial: juntaex.es, apartado de consulta de documentación arqueológica.</p>`); }
     if (d.copy) copyText($('#' + d.copy).value, t);
@@ -238,6 +221,9 @@
     <div class="mute">Comparar encima, con transparencia</div><div class="seg">${seg('cmp', 'cmp', `<button data-cmp="none" class="${state.cmp === 'none' ? 'on' : ''}">Nada</button>`)}</div>
     <input type="range" id="op" min="0" max="100" step="5" value="${state.op}" aria-label="Transparencia">
     <div class="mute" style="margin-top:12px">Encima del mapa</div>
+    <label class="ck"><input type="checkbox" id="k_det" ${state.det ? 'checked' : ''}> Relieve de detalle al acercar (LiDAR 5 m calculado en el móvil, nítido de cerca)</label>
+    <input type="range" id="detOp" min="20" max="100" step="5" value="${state.detOp}" aria-label="Transparencia del relieve de detalle">
+    <button data-v3here style="width:100%;margin:6px 0">Ver en 3D el centro del mapa</button>
     <label class="ck"><input type="checkbox" id="k_veto" ${state.veto ? 'checked' : ''}> Zonas conocidas, vetadas (rojo)</label>
     <label class="ck"><input type="checkbox" id="k_known" ${state.known ? 'checked' : ''}> Yacimientos y monumentos conocidos</label>
     <label class="ck"><input type="checkbox" id="k_roads" ${state.roads ? 'checked' : ''}> Vía de la Plata, cañadas y caminos viejos</label>
@@ -252,6 +238,8 @@
     $('#minS').oninput = e => { state.minS = +e.target.value; $('#msv').textContent = state.minS; saveState(); drawCands(); };
     document.querySelectorAll('[data-lv]').forEach(b => b.onchange = e => { state.show[+e.target.dataset.lv] = e.target.checked ? 1 : 0; saveState(); drawCands(); });
     for (const k of ['veto', 'known', 'roads', 'mine', 'cat']) $('#k_' + k).onchange = e => { state[k] = e.target.checked ? 1 : 0; saveState(); toggles(); };
+    $('#k_det').onchange = e => { state.det = e.target.checked ? 1 : 0; saveState(); detKey = ''; detailRelief(); if (state.det && map.getZoom() < 15) toast('Acércate (escala de 500 m o menos) y se dibuja solo.'); };
+    $('#detOp').oninput = e => { state.detOp = +e.target.value; saveState(); if (detL) detL.setOpacity(state.detOp / 100); };
   }
   function toggles() {
     for (const k of ['veto', 'known', 'roads', 'mine']) { if (state[k]) layers[k].addTo(map); else map.removeLayer(layers[k]); }
@@ -379,12 +367,12 @@
       const l = BASES[id].mk(), crs = map.options.crs;
       for (const t of tiles) {
         try {
-          if (l.wmsParams) {
+          if (l.wmsParams && t.z <= (l.options.maxNativeZoom || 20)) {
             const wp = Object.assign({}, l.wmsParams, { srs: crs.code });
             const nw = map.unproject(L.point(t.x * 256, t.y * 256), t.z), se = map.unproject(L.point(t.x * 256 + 256, t.y * 256 + 256), t.z);
             const b = L.bounds(crs.project(nw), crs.project(se));
             urls.push(l._url + L.Util.getParamString(wp, l._url, l.options.uppercase) + '&bbox=' + [b.min.x, b.min.y, b.max.x, b.max.y].join(','));
-          } else if (t.z <= (l.options.maxNativeZoom || 20)) {
+          } else if (!l.wmsParams && t.z <= (l.options.maxNativeZoom || 20)) {
             urls.push(L.Util.template(l._url, { z: t.z, x: t.x, y: t.y, s: 'a', r: '' }));
           }
         } catch (e) { }
@@ -401,7 +389,7 @@
   function start() {
     decode();
     $('#gate').remove();
-    map = L.map('map', { zoomControl: false, maxZoom: 20, tap: true }).setView(D.center, 11);
+    map = L.map('map', { zoomControl: false, maxZoom: 21, tap: true }).setView(D.center, 11);
     map.createPane('relief').style.zIndex = 350;
     L.control.zoom({ position: 'bottomright' }).addTo(map);
     L.control.scale({ imperial: false, position: 'bottomright' }).addTo(map);
@@ -418,6 +406,7 @@
       L.polyline(ll, { color: k === 0 ? '#6a2fb0' : '#8a5a2b', weight: k === 0 ? 4 : 2.5, opacity: .85, dashArray: k === 0 ? null : '6 4' }).bindTooltip(D.RN[ni], { sticky: true }).addTo(layers.roads);
     }
     drawCands(); drawMine(); toggles();
+    map.on('moveend', detailRelief); detailRelief();
     $('#bLayers').onclick = layersSheet; $('#bList').onclick = listSheet; $('#bOff').onclick = offSheet; $('#bRoute').onclick = routeSheet; $('#bHelp').onclick = helpSheet;
     $('#bGps').onclick = () => { if (gps) map.setView(gps, Math.max(map.getZoom(), 16)); else startGps(true); };
     $('#add').onclick = addSheet;
