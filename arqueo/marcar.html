@@ -26,7 +26,7 @@ for(const k in B){const b=document.createElement('button');b.textContent=k;b.onc
 seg.firstChild.click();
 // nombres de pueblos, calles y carreteras encima de cualquier fondo
 L.tileLayer('https://www.ign.es/wmts/ign-base?layer=IGNBaseOrto&style=default&tilematrixset=GoogleMapsCompatible&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image/png&TileMatrix={z}&TileCol={x}&TileRow={y}',{maxZoom:21,maxNativeZoom:18,attribution:'IGN',zIndex:50}).addTo(map);
-const P=[['Santa Marta',38.6135,-6.6305],['Villalba',38.6095,-6.5097],['Aceuchal',38.6467,-6.4853],['Almendralejo',38.6829,-6.4078],['Solana',38.6533,-6.5375],['Nogales',38.5833,-6.7408],['Feria',38.5116,-6.5650],['Torre de M. Sesmero',38.6050,-6.7930]];
+const P=[['Santa Marta',38.6135,-6.6305],['Villalba',38.6095,-6.5097],['Aceuchal',38.6467,-6.4853],['Almendralejo',38.6829,-6.4078],['Solana',38.7253,-6.5394],['Nogales',38.5833,-6.7408],['Feria',38.5116,-6.5650],['Torre de M. Sesmero',38.6050,-6.7930]];
 const go=document.getElementById('go');
 for(const [n,a,o] of P){L.marker([a,o],{icon:L.divIcon({className:'',html:`<div style="background:#5b2a86;color:#fff;font:700 13px sans-serif;padding:3px 6px;border-radius:5px;white-space:nowrap;transform:translate(-50%,-50%);display:inline-block;box-shadow:0 1px 3px #000">${n}</div>`,iconSize:[0,0]}),interactive:false}).addTo(map);
  const b=document.createElement('button');b.textContent=n;b.onclick=()=>map.setView([a,o],15);go.appendChild(b)}
