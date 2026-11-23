@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#2b1d14">
+<meta name="robots" content="noindex,nofollow">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Prospección Barros</title>
+<link rel="stylesheet" href="lib/leaflet.css">
+<style>
+/* VOICE: herramienta de campo, sobria y clara
+   IDEA: cuaderno de prospección sobre el relieve
+   PICTURE: el propio mapa ocupa toda la pantalla
+   COLOUR: tierra oscura #2b1d14, papel #fbf7f1, arcilla #a4502a
+   LAYOUT: mapa a pantalla completa, botones a la derecha, fichas que suben desde abajo */
+:root{--bg:#2b1d14;--panel:#fbf7f1;--ink:#2a2119;--mute:#7a6b5d;--line:#e3d9cc;--clay:#a4502a}
+*{box-sizing:border-box;min-width:0}
+html,body{margin:0;height:100%;font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink);background:var(--bg);overscroll-behavior:none}
+#map{position:fixed;inset:0;background:#d8d2c6}
+button{font:inherit;color:inherit;cursor:pointer;border:1px solid var(--line);background:#fff;border-radius:10px;min-height:44px;padding:0 14px}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid #1a73e8;outline-offset:1px}
+button.pri{background:var(--clay);border-color:var(--clay);color:#fff}
+.top{position:fixed;top:0;left:0;right:0;padding:calc(env(safe-area-inset-top) + 8px) 12px 18px;z-index:1000;background:linear-gradient(#2b1d14ee,#2b1d1400);color:#fff;pointer-events:none}
+.top h1{font-size:16px;font-weight:600;margin:0;text-shadow:0 1px 2px #000}
+.fab{position:fixed;right:10px;top:calc(env(safe-area-inset-top) + 48px);z-index:1000;display:flex;flex-direction:column;gap:8px}
+.fab button{width:48px;height:48px;padding:0;border-radius:12px;box-shadow:0 2px 6px #0004;display:flex;align-items:center;justify-content:center}
+.fab svg{width:22px;height:22px;fill:none;stroke:#2a2119;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#add{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom) + 16px);z-index:1000;width:56px;height:56px;border-radius:28px;background:var(--clay);color:#fff;border:0;font-size:30px;line-height:1;box-shadow:0 2px 8px #0006}
+.sheet{position:fixed;left:0;right:0;bottom:0;max-height:82vh;overflow:auto;background:var(--panel);z-index:1100;border-radius:16px 16px 0 0;padding:14px 16px calc(env(safe-area-inset-bottom) + 18px);box-shadow:0 -4px 16px #0005;transform:translateY(105%);transition:transform .22s;max-width:720px;margin:0 auto}
+.sheet.on{transform:none}
+.sheet h2{font-size:19px;margin:6px 0 4px;line-height:1.2}
+.sheet h3{font-size:14px;margin:16px 0 4px;color:var(--clay);text-transform:none}
+.sheet .x{float:right;min-height:40px;width:44px;padding:0;font-size:22px}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{display:inline-block;font-size:12px;padding:3px 9px;border-radius:20px;font-weight:600}
+.l0{background:#e3efd3;color:#27500a}.l1{background:#fbe8c8;color:#6b4006}.l2{background:#efe6d8;color:#5c4524}.lk{background:#f7d7d4;color:#7a1712}.lm{background:#dfe9f7;color:#0c447c}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.row button{flex:1 1 140px}
+.why{margin:6px 0;padding:0;list-style:none}
+.why li{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid var(--line);padding:7px 0;font-size:14px}
+.why b{white-space:nowrap;color:#3b6d11}.why b.neg{color:#b3261e}
+.theory{border-left:3px solid var(--line);padding:2px 0 2px 10px;margin:8px 0}
+.theory.first{border-color:var(--clay)}
+.theory p{margin:2px 0 0;font-size:14px;color:#4a3d31}
+.small{font-size:14px}
+.mute{color:var(--mute);font-size:13px}
+.seg{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 10px}
+.seg button{min-height:38px;font-size:13px;padding:0 10px}
+.seg button.on{border:2px solid var(--clay);color:var(--clay);font-weight:600}
+label.ck{display:flex;align-items:center;gap:10px;min-height:42px}
+label.ck input{width:20px;height:20px}
+input[type=range]{width:100%;height:32px}
+textarea,input[type=text],input[type=password]{width:100%;font:16px system-ui;padding:10px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink)}
+textarea{min-height:84px;margin-top:6px}
+.list{list-style:none;padding:0;margin:8px 0 0}
+.list li{display:flex;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line);cursor:pointer}
+.rl{padding-left:20px}.rl li{padding:6px 0;cursor:pointer}
+.sc{min-width:40px;text-align:center;font-weight:700;border-radius:8px;padding:5px 0;color:#fff}
+#gate{position:fixed;inset:0;z-index:3000;background:var(--bg);color:#fff;display:flex;align-items:center;justify-content:center;padding:24px}
+#gate .card{max-width:380px;width:100%}
+#gate h1{font-size:30px;margin:0 0 8px;line-height:1.1}
+#gate p{color:#d9c8b6}
+#gate input{margin:14px 0}
+#gate button{width:100%}
+#err{color:#ffb4a8;min-height:22px;margin-top:8px}
+#prog{position:fixed;left:10px;right:70px;top:calc(env(safe-area-inset-top) + 48px);z-index:1050;background:#000d;color:#fff;border-radius:10px;padding:10px 12px;font-size:13px;display:none}
+#legend{position:fixed;left:10px;bottom:calc(env(safe-area-inset-bottom) + 84px);z-index:900;background:#fffe;border-radius:10px;padding:6px 10px;font-size:12px;line-height:1.6}
+.dot{display:inline-block;width:11px;height:11px;border-radius:50%;vertical-align:-1px;margin-right:4px;border:2px solid #0006}
+.gps{width:18px;height:18px;border-radius:50%;background:#1a73e8;border:3px solid #fff;box-shadow:0 0 0 3px #1a73e855}
+.cross{background:linear-gradient(#fff,#fff) center/2px 22px no-repeat,linear-gradient(#fff,#fff) center/22px 2px no-repeat;filter:drop-shadow(0 0 1px #000)}
+.leaflet-container{font:inherit}
+.leaflet-bottom.leaflet-right{margin-bottom:calc(env(safe-area-inset-bottom) + 80px)}
+@media (prefers-reduced-motion:reduce){.sheet{transition:none}}
+</style>
+</head>
+<body>
+<div id="gate"><div class="card">
+<h1>Prospección Barros</h1>
+<p>Candidatos arqueológicos en 30 km alrededor de Aceuchal, con relieve LiDAR del IGN. Los datos van cifrados.</p>
+<form id="gf"><input id="pw" type="password" autocomplete="current-password" placeholder="Contraseña" aria-label="Contraseña"><button class="pri">Entrar</button></form>
+<div id="err"></div>
+<p style="font-size:13px;color:#bfae9b">Mirar y pasear no daña nada. Excavar o usar detector sin autorización de la Junta es ilegal.</p>
+</div></div>
+
+<div id="map"></div>
+<div class="top"><h1>Prospección Barros</h1></div>
+<div class="fab">
+<button id="bLayers" aria-label="Capas" title="Capas"><svg viewBox="0 0 24 24"><path d="M12 3 2 8l10 5 10-5-10-5z"/><path d="m2 13 10 5 10-5"/><path d="m2 18 10 5 10-5"/></svg></button>
+<button id="bList" aria-label="Lista y búsqueda" title="Lista y búsqueda"><svg viewBox="0 0 24 24"><circle cx="10" cy="10" r="6"/><path d="m20 20-5.5-5.5"/></svg></button>
+<button id="bRoute" aria-label="Ruta del día" title="Ruta del día"><svg viewBox="0 0 24 24"><circle cx="6" cy="18" r="2"/><circle cx="18" cy="6" r="2"/><path d="M8 18h6a4 4 0 0 0 0-8h-4a4 4 0 0 1 0-8h6"/></svg></button>
+<button id="bGps" aria-label="Mi posición" title="Mi posición"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></button>
+<button id="bOff" aria-label="Guardar sin conexión" title="Guardar sin conexión"><svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 20h16"/></svg></button>
+<button id="bHelp" aria-label="Cómo funciona" title="Cómo funciona"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14"/><path d="M12 17.5v.5"/></svg></button>
+</div>
+<button id="add" aria-label="Añadir punto propio">+</button>
+<div id="legend"></div>
+<div id="prog" role="status"></div>
+<div class="sheet" id="sheet"></div>
+
+<script src="lib/leaflet.js"></script>
+<script src="lib/geotiff.js"></script>
+<script src="score.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
