@@ -180,7 +180,7 @@
         const gx = (z[i + 1] - z[i - 1]) / (2 * px) * 3, gy = (z[i + W] - z[i - W]) / (2 * px) * 3;
         let sh = 0; for (const [lx, ly] of dirs) sh += Math.max(0, (1 + (-gx * lx - gy * ly) * 0.7) / Math.sqrt(1 + gx * gx + gy * gy));
         sh = Math.min(1, sh / dirs.length);
-        const v = Math.max(-1.2, Math.min(1.2, lrm[i])) / 1.2;
+        const v = Math.max(-2, Math.min(2, lrm[i])) / 2 * 0.75;
         let R0 = 225 * sh + 20, G0 = 220 * sh + 20, B0 = 210 * sh + 20;
         if (v > 0) { R0 = R0 * (1 - v) + 200 * v; G0 = G0 * (1 - v * .7); B0 = B0 * (1 - v * .8); }
         else { R0 = R0 * (1 + v * .8); G0 = G0 * (1 + v * .4); B0 = B0 * (1 + v) - 190 * v; }
@@ -190,7 +190,7 @@
       ctx.putImageData(img, 0, 0);
       if (relief) map.removeLayer(relief);
       relief = L.layerGroup().addTo(map);
-      L.imageOverlay(cv.toDataURL(), [[bb[1], bb[0]], [bb[3], bb[2]]], { opacity: 0.85, interactive: false }).addTo(relief);
+      L.imageOverlay(cv.toDataURL(), [[bb[1], bb[0]], [bb[3], bb[2]]], { opacity: 0.9, interactive: false, pane: 'relief' }).addTo(relief);
       L.rectangle([[bb[1], bb[0]], [bb[3], bb[2]]], { color: '#fff', weight: 1, fill: false, dashArray: '4 4', interactive: false }).addTo(relief);
       map.setView([c.a, c.o], 17);
       $('#sheet').classList.remove('on');
@@ -388,6 +388,7 @@
     decode();
     $('#gate').remove();
     map = L.map('map', { zoomControl: false, maxZoom: 20, tap: true }).setView(D.center, 11);
+    map.createPane('relief').style.zIndex = 350;
     L.control.zoom({ position: 'bottomright' }).addTo(map);
     L.control.scale({ imperial: false, position: 'bottomright' }).addTo(map);
     setBase();
