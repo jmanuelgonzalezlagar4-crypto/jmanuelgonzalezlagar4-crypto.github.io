@@ -67,7 +67,7 @@ var ARQT = (function () {
     const ctx = cv.getContext('2d'), img = ctx.createImageData(CW, CH), dd = img.data;
     const ex = opts.exag || 3, step = 1 / k;
     const dirs = [[1, 1], [-1, 1], [1, -1], [-1, -1], [0, 1], [1, 0], [0, -1], [-1, 0]];
-    const scale = opts.range || 1.5, alpha = opts.alpha == null ? 225 : opts.alpha;
+    const scale = opts.range || 2, alpha = opts.alpha == null ? 225 : opts.alpha;
     for (let Y = 0; Y < CH; Y++) {
       const fy = (Y + .5) / k - .5;
       for (let X = 0; X < CW; X++) {
@@ -76,7 +76,7 @@ var ARQT = (function () {
         const gy = (bil(z, W, H, fx, fy + step) - bil(z, W, H, fx, fy - step)) / (2 * step * px) * ex;
         let sh = 0; for (const [lx, ly] of dirs) sh += Math.max(0, (1 + (-gx * lx - gy * ly) * 0.6) / Math.sqrt(1 + gx * gx + gy * gy));
         sh = Math.min(1, sh / dirs.length * 1.05);
-        const v = Math.max(-scale, Math.min(scale, bil(lrm, W, H, fx, fy))) / scale * 0.8;
+        const v = Math.max(-scale, Math.min(scale, bil(lrm, W, H, fx, fy))) / scale * 0.55;
         let R = 228 * sh + 18, G = 222 * sh + 18, B = 212 * sh + 18;
         if (v > 0) { R = R * (1 - v) + 205 * v; G = G * (1 - v * .75); B = B * (1 - v * .85); }
         else { R = R * (1 + v * .85); G = G * (1 + v * .45); B = B * (1 + v) - 200 * v; }
