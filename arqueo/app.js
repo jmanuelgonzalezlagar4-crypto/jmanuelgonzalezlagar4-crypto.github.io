@@ -10,12 +10,13 @@
   };
   const LEVEL = ['Visto en el relieve', 'Probable', 'Hipótesis'];
   const LCOL = ['#3b6d11', '#d98a1c', '#8a6a3a'];
-  const SRC = ['Anomalía LiDAR', 'Topónimo', 'Ermita', 'Modelo predictivo'];
+  const SRC = ['Anomalía LiDAR', 'Topónimo', 'Ermita', 'Modelo predictivo', 'Cueva, sima o hundimiento', 'Anomalía de satélite'];
+  const CAVE_COL = '#5b2a86';
   const scoreCol = s => s >= 75 ? '#7a1a0a' : s >= 60 ? '#a4502a' : s >= 45 ? '#d98a1c' : '#b59a6a';
   const reS = /villar|castillej|castro\b|paredon|paredes|paredita|paredón|torrej|torrecilla|torre agui|tejar|tejares|\bteja\b|moro\b|\bmora\b|romanos|calzada|atalaya|palacio quemado|casas viejas|malcasar|\bcasar\b|cristianos|siete piedras|los hornos|tesoro|almenas|castillo de guadajira|cuarto del castillo|barreras del castillo|sierra castillo|cerro del castillo|el castillo|fuente castillo|villarreala|villagordo|\bcastro\b/i;
 
   let D = null, C = [], map, layers = {}, gps = null, gpsMarker = null, relief = null;
-  let state = Object.assign({ base: 'lidar', cmp: 'none', op: 60, minS: 0, show: [1, 1, 1], known: 1, roads: 1, veto: 1, mine: 1, cat: 0, det: 0, detOp: 85 }, LS.get('state', {}));
+  let state = Object.assign({ base: 'lidar', cmp: 'none', op: 60, minS: 0, show: [1, 1, 1], known: 1, roads: 1, veto: 1, mine: 1, cat: 0, det: 0, detOp: 85, arq: 1, caves: 1, sat: 1, onlyNew: 0, geo: 0, kcav: 1, chains: 1 }, LS.get('state', {}));
   const marks = LS.get('marks', {});
   const mine = LS.get('mine', []);
   const saveState = () => LS.set('state', state);
@@ -48,11 +49,21 @@
         sp: d10(r[15]), sl: r[16], tp: r[17], dt: d10(r[18]), an: null
       };
       f.ts = f.tn ? (reS.test(f.tn) ? 2 : 1) : 0;
-      if (r.length >= 25) f.an = { sg: r[20], h: r[21] / 10, ar: r[22] * 10, el: r[23] / 10, sig: r[24] / 10 };
+      if (r.length >= 25 && r[20]) f.an = { sg: r[20], h: r[21] / 10, ar: r[22] * 10, el: r[23] / 10, sig: r[24] / 10 };
+      if (r.length >= 28 && r[26] != null && r[26] > -900) f.sat = { mA: r[26] / 100, aN: r[27] / 1000 };
+      if (r.length >= 30) f.qc = r[29];
       const s = ARQ.score(f);
       const th = ARQ.theory(f);
       const par = r[19] >= 0 ? N[r[19]] : '';
-      return { id: i + 1, a: D.LA + r[0] / 1e5, o: D.LO + r[1] / 1e5, s, l: r[3], src: r[4], f, th, par, t: th[0][0] };
+      return { id: i + 1, a: D.LA + r[0] / 1e5, o: D.LO + r[1] / 1e5, s, l: r[3], src: r[4], f, th, par, t: th[0][0], rep: r[25] === 1, sm: r[28] === 1 };
+    });
+    // cuevas, simas, galerías y anomalías de satélite (se numeran a continuación)
+    const KC = D.KC || [];
+    (D.cv || []).forEach((r, j) => {
+      const k = r[9] >= 0 ? KC[r[9]] : null;
+      const g = { k: r[4], ar: r[5], h: r[6] / 10, el: r[7] / 10, carb: r[8], kc: k ? k[3] : '', kct: k ? (/cueva/.test(k[2]) ? 'cueva' : 'mina') : '', kd: r[10] >= 0 ? r[10] * 10 : 99999, mA: r[11] / 100, aN: r[12] / 1000, lit: (D.LI || [])[r[13]] || '', qc: r[14] || 0 };
+      const s = ARQC.score(g), th = ARQC.theory(g);
+      C.push({ id: C.length + 1, a: D.LA + r[0] / 1e5, o: D.LO + r[1] / 1e5, s, l: r[3], src: 4 + (r[4] >= 3 ? 1 : 0), cave: g, f: { an: g.k === 0 ? { sg: -1 } : null }, th, par: '', t: th[0][0], rep: true });
     });
   }
 
@@ -67,7 +78,7 @@
     mdt: { n: 'Altitudes', mk: () => wms('https://servicios.idee.es/wms-inspire/mdt', 'EL.ElevationGridCoverage', 16) },
     mapa: { n: 'Mapa IGN', mk: () => L.tileLayer('https://www.ign.es/wmts/mapa-raster?layer=MTN&style=default&tilematrixset=GoogleMapsCompatible&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image/jpeg&TileMatrix={z}&TileCol={x}&TileRow={y}', { maxZoom: 21, maxNativeZoom: 17, attribution: 'IGN' }) }
   };
-  let baseL = null, cmpL = null, catL = null;
+  let baseL = null, cmpL = null, catL = null, geoL = null;
   function setBase() { if (baseL) map.removeLayer(baseL); baseL = BASES[state.base].mk().addTo(map); baseL.bringToBack(); setCmp(); }
   function setCmp() { if (cmpL) { map.removeLayer(cmpL); cmpL = null; } if (state.cmp !== 'none' && state.cmp !== state.base) { cmpL = BASES[state.cmp].mk().addTo(map); cmpL.setOpacity(state.op / 100); cmpL.setZIndex(5); } }
   function setCat() {
@@ -76,13 +87,28 @@
   }
 
   /* ---------------- candidatos en el mapa ---------------- */
-  function visible(c) { return c.s >= state.minS && state.show[c.l]; }
+  function visible(c) {
+    if (c.s < state.minS || !state.show[c.l]) return false;
+    if (c.src === 4 && !state.caves) return false;
+    if (c.src === 5 && !state.sat) return false;
+    if (c.src < 4 && !state.arq) return false;
+    if (state.onlyNew && !c.rep) return false;
+    return true;
+  }
   function drawCands() {
     layers.cand.clearLayers();
     for (const c of C) {
       if (!visible(c)) continue;
       const m = marks[c.id];
       const r = c.l === 0 ? 8 : c.l === 1 ? 6.5 : 5;
+      if (c.src >= 4) {
+        const col = m === 'des' ? '#777' : m === 'vis' ? '#1a73e8' : m === 'int' ? '#7a1fa2' : (c.src === 4 ? CAVE_COL : '#0f7c8a');
+        const sz = c.l === 1 ? 15 : 12;
+        const html = c.src === 4 ? `<div style="width:${sz}px;height:${sz}px;transform:rotate(45deg);background:${col};border:2px solid #fff;box-shadow:0 0 2px #000;opacity:${m === 'des' ? .4 : .95}"></div>`
+          : `<div style="width:${sz}px;height:${sz}px;border-radius:50%;background:transparent;border:3px solid ${col};box-shadow:0 0 2px #000"></div>`;
+        L.marker([c.a, c.o], { icon: L.divIcon({ className: '', html, iconSize: [sz, sz] }) }).on('click', () => openCand(c)).addTo(layers.cand);
+        continue;
+      }
       L.circleMarker([c.a, c.o], {
         radius: r, color: m === 'des' ? '#555' : LCOL[c.l], weight: c.l === 2 ? 1.6 : 2.2, dashArray: c.l === 2 ? '3 2' : null,
         fillColor: m === 'des' ? '#999' : m === 'vis' ? '#1a73e8' : m === 'int' ? '#7a1fa2' : scoreCol(c.s), fillOpacity: m === 'des' ? .3 : .85
@@ -91,8 +117,9 @@
     legend();
   }
   function legend() {
-    const n = [0, 0, 0]; for (const c of C) if (c.s >= state.minS) n[c.l]++;
-    $('#legend').innerHTML = `<span class="dot" style="background:${LCOL[0]}"></span>Visto ${n[0]} &nbsp;<span class="dot" style="background:${LCOL[1]}"></span>Probable ${n[1]} &nbsp;<span class="dot" style="background:#fff;border:2px dashed ${LCOL[2]}"></span>Hipótesis ${n[2]}`;
+    const n = [0, 0, 0]; let cv = 0, st = 0; for (const c of C) if (visible(c)) { if (c.src === 4) cv++; else if (c.src === 5) st++; else n[c.l]++; }
+    $('#legend').innerHTML = `<span class="dot" style="background:${LCOL[0]}"></span>Visto ${n[0]} &nbsp;<span class="dot" style="background:${LCOL[1]}"></span>Probable ${n[1]} &nbsp;<span class="dot" style="background:#fff;border:2px dashed ${LCOL[2]}"></span>Hipótesis ${n[2]}` +
+      (cv ? ` &nbsp;<span class="dot" style="background:${CAVE_COL};border-radius:2px;transform:rotate(45deg)"></span>Cuevas ${cv}` : '') + (st ? ` &nbsp;<span class="dot" style="background:transparent;border:2px solid #0f7c8a"></span>Satélite ${st}` : '');
   }
 
   /* ---------------- ficha del candidato ---------------- */
@@ -100,10 +127,10 @@
   const dist = (a1, o1, a2, o2) => map.distance([a1, o1], [a2, o2]);
   function openCand(c) {
     const m = marks[c.id] || '', note = LS.get('n_' + c.id, '');
-    const w = ARQ.contrib(c.f).sort((x, y) => y[1] - x[1]);
+    const w = (c.cave ? ARQC.contrib(c.cave) : ARQ.contrib(c.f)).sort((x, y) => y[1] - x[1]);
     const g = gps ? dist(gps[0], gps[1], c.a, c.o) : null;
     sheet(`<button class="x" data-close aria-label="Cerrar">&times;</button>
-    <div class="chips"><span class="chip l${c.l}">${LEVEL[c.l]}</span><span class="chip" style="background:${scoreCol(c.s)};color:#fff">${c.s} / 100</span><span class="chip lm">${SRC[c.src]}</span></div>
+    <div class="chips"><span class="chip l${c.l}">${LEVEL[c.l]}</span><span class="chip" style="background:${scoreCol(c.s)};color:#fff">${c.s} / 100</span><span class="chip lm">${SRC[c.src]}</span>${c.rep ? '<span class="chip lm">Nuevo en la auditoría</span>' : ''}${c.sm ? '<span class="chip lm">Detalle fino (30 m)</span>' : ''}</div>
     <h2>${esc(c.t)}</h2>
     <div class="mute">${c.par ? 'Paraje ' + esc(c.par) + ' · ' : ''}${fmt(c.a, c.o)} · nº ${c.id}${g != null ? ' · a ' + (g / 1000).toFixed(g < 10000 ? 1 : 0) + ' km de ti' : ''}</div>
     <div class="row"><button class="pri" data-relief="${c.id}">Relieve marcado</button><button class="pri" data-v3="${c.id}">Vista 3D y a pie</button></div>
@@ -124,6 +151,15 @@
   }
   function fieldTip(c) {
     const t = [];
+    if (c.cave) {
+      const g = c.cave;
+      t.push('<b>Seguridad primero: no entres nunca en una cueva, pozo o galería sin equipo y sin avisar a alguien.</b> Los pozos de mina y las simas tapadas pueden ceder bajo los pies, y dentro puede faltar oxígeno. Los murciélagos están protegidos: no molestes a las colonias.');
+      if (g.k === 0) t.push('Mira el hoyo desde el borde: si las paredes son de roca, si sale aire (en verano fresco, en invierno templado y con vaho) o si hay piedras colocadas, ladrillo o mortero alrededor (pozo o cisterna). Busca otros hoyos alineados cada 20–60 m: serían las lumbreras de una mina de agua.');
+      if (g.k === 1) t.push('Recorre el pie del cortado con prismáticos: busca huecos oscuros, viseras de roca y suelo ennegrecido (hogares). En las paredes protegidas, fíjate en pinturas rojizas esquemáticas, a veces apenas visibles.');
+      if (g.k >= 3) t.push('El satélite señala una zona de unos 100 m. Busca dentro juncos, zarzas o hierba verde en agosto, piedras de un brocal, un pilar o una fuente vieja, o una fila de montoncitos de tierra (lumbreras).');
+      t.push('Si encuentras una cavidad, comunícalo: la Junta y los grupos de espeleología la catalogan sin necesidad de que entres.');
+      return t.join(' ');
+    }
     const a = c.f.an;
     if (a && a.sg > 0) t.push('Sube al abultamiento y mira la tierra arada: tejas curvas o planas (tégulas), ladrillo macizo, trozos de cerámica roja brillante (terra sigillata), piedras de muro sueltas o mortero de cal.');
     if (a && a.sg < 0) t.push('En el hoyo fíjate si el borde es regular o circular, si hay piedras colocadas o tierra más oscura: un foso o silo rellenado cambia el color de la tierra.');
@@ -133,7 +169,7 @@
     return esc(t.join(' '));
   }
   function patrimonioText(c) {
-    return `Asunto: Comunicación de posible yacimiento arqueológico\n\nMe dirijo a la Dirección General de Patrimonio Cultural de la Junta de Extremadura para comunicar un posible yacimiento arqueológico, por si no estuviera ya catalogado.\n\nLocalización: paraje ${c.par || '(sin nombre)'}, coordenadas ${fmt(c.a, c.o)} (ETRS89, grados decimales).\nIndicios: ${ARQ.contrib(c.f).filter(x => x[1] > 0).map(x => x[0]).join('; ')}.\nInterpretación posible: ${c.th.map(x => x[0]).join(', ')}.\n\nNo he realizado ninguna remoción de tierras ni recogida de materiales. Quedo a su disposición para ampliar la información.\n\nAtentamente,\nJosé Manuel González Lagar`;
+    return `Asunto: Comunicación de posible ${c.cave ? 'cavidad o ' : ''}yacimiento arqueológico\n\nMe dirijo a la Dirección General de Patrimonio Cultural de la Junta de Extremadura para comunicar un posible yacimiento arqueológico, por si no estuviera ya catalogado.\n\nLocalización: paraje ${c.par || '(sin nombre)'}, coordenadas ${fmt(c.a, c.o)} (ETRS89, grados decimales).\nIndicios: ${(c.cave ? ARQC.contrib(c.cave) : ARQ.contrib(c.f)).filter(x => x[1] > 0).map(x => x[0]).join('; ')}.\nInterpretación posible: ${c.th.map(x => x[0]).join(', ')}.\n\nNo he realizado ninguna remoción de tierras ni recogida de materiales. Quedo a su disposición para ampliar la información.\n\nAtentamente,\nJosé Manuel González Lagar`;
   }
 
   /* ---------------- relieve local LiDAR (MDT 5 m del IGN), calculado aquí ---------------- */
@@ -229,7 +265,15 @@
     <label class="ck"><input type="checkbox" id="k_roads" ${state.roads ? 'checked' : ''}> Vía de la Plata, cañadas y caminos viejos</label>
     <label class="ck"><input type="checkbox" id="k_cat" ${state.cat ? 'checked' : ''}> Parcelas del Catastro (al acercar)</label>
     <label class="ck"><input type="checkbox" id="k_mine" ${state.mine ? 'checked' : ''}> Mis puntos</label>
-    <div class="mute" style="margin-top:12px">Candidatos</div>
+    <label class="ck"><input type="checkbox" id="k_geo" ${state.geo ? 'checked' : ''}> Geología (IGME 1:50.000): calizas y mármoles en azul</label>
+    <label class="ck"><input type="checkbox" id="k_kcav" ${state.kcav ? 'checked' : ''}> Minas, cuevas y topónimos de cavidades conocidos</label>
+    <label class="ck"><input type="checkbox" id="k_chains" ${state.chains ? 'checked' : ''}> Filas de hoyos alineados (posibles minas de agua)</label>
+    <div class="mute" style="margin-top:12px">Qué candidatos ver</div>
+    <label class="ck"><input type="checkbox" id="k_arq" ${state.arq ? 'checked' : ''}> Yacimientos (relieve, topónimos, modelo)</label>
+    <label class="ck"><input type="checkbox" id="k_caves" ${state.caves ? 'checked' : ''}> <span class="dot" style="background:${CAVE_COL};border-radius:2px"></span>Cuevas, simas, hundimientos y cortados</label>
+    <label class="ck"><input type="checkbox" id="k_sat" ${state.sat ? 'checked' : ''}> <span class="dot" style="background:transparent;border:2px solid #0f7c8a"></span>Anomalías de satélite (humedad y frío en verano)</label>
+    <label class="ck"><input type="checkbox" id="k_onlyNew" ${state.onlyNew ? 'checked' : ''}> Solo lo nuevo de la auditoría</label>
+    <div class="mute" style="margin-top:12px">Nivel</div>
     ${LEVEL.map((t, i) => `<label class="ck"><input type="checkbox" data-lv="${i}" ${state.show[i] ? 'checked' : ''}> <span class="dot" style="background:${LCOL[i]}"></span>${t}</label>`).join('')}
     <div class="mute">Puntuación mínima: <b id="msv">${state.minS}</b></div>
     <input type="range" id="minS" min="0" max="90" step="5" value="${state.minS}" aria-label="Puntuación mínima">
@@ -237,13 +281,16 @@
     $('#op').oninput = e => { state.op = +e.target.value; saveState(); if (cmpL) cmpL.setOpacity(state.op / 100); };
     $('#minS').oninput = e => { state.minS = +e.target.value; $('#msv').textContent = state.minS; saveState(); drawCands(); };
     document.querySelectorAll('[data-lv]').forEach(b => b.onchange = e => { state.show[+e.target.dataset.lv] = e.target.checked ? 1 : 0; saveState(); drawCands(); });
-    for (const k of ['veto', 'known', 'roads', 'mine', 'cat']) $('#k_' + k).onchange = e => { state[k] = e.target.checked ? 1 : 0; saveState(); toggles(); };
+    for (const k of ['veto', 'known', 'roads', 'mine', 'cat', 'geo', 'kcav', 'chains']) $('#k_' + k).onchange = e => { state[k] = e.target.checked ? 1 : 0; saveState(); toggles(); };
+    for (const k of ['arq', 'caves', 'sat', 'onlyNew']) $('#k_' + k).onchange = e => { state[k] = e.target.checked ? 1 : 0; saveState(); drawCands(); };
     $('#k_det').onchange = e => { state.det = e.target.checked ? 1 : 0; saveState(); detKey = ''; detailRelief(); if (state.det && map.getZoom() < 15) toast('Acércate (escala de 500 m o menos) y se dibuja solo.'); };
     $('#detOp').oninput = e => { state.detOp = +e.target.value; saveState(); if (detL) detL.setOpacity(state.detOp / 100); };
   }
   function toggles() {
-    for (const k of ['veto', 'known', 'roads', 'mine']) { if (state[k]) layers[k].addTo(map); else map.removeLayer(layers[k]); }
+    for (const k of ['veto', 'known', 'roads', 'mine', 'kcav', 'chains']) { if (state[k]) layers[k].addTo(map); else map.removeLayer(layers[k]); }
     setCat();
+    if (geoL) { map.removeLayer(geoL); geoL = null; }
+    if (state.geo) geoL = L.tileLayer.wms('https://mapas.igme.es/gis/services/Cartografia_Geologica/IGME_MAGNA_50/MapServer/WMSServer', { layers: '0', format: 'image/png', transparent: true, version: '1.3.0', opacity: 0.55, maxZoom: 21, maxNativeZoom: 16, attribution: 'IGME-CSIC MAGNA 50 (CC BY 4.0)' }).addTo(map).setZIndex(7);
   }
 
   /* ---------------- lista y búsqueda ---------------- */
@@ -299,6 +346,10 @@
     <h3>De dónde salen los puntos</h3>
     <p class="small"><b>Relieve LiDAR.</b> Se analizó el modelo del terreno del IGN a 5 m (vuelo LiDAR) de los ~2.800 km² del círculo. A cada punto se le restó la forma general del terreno para dejar solo los bultos y hoyos de pocos palmos. Se encontraron unas 54.000 anomalías; se quedaron las más nítidas y compactas fuera de pueblos, agua y sitios ya conocidos.</p>
     <p class="small"><b>Modelo predictivo.</b> Cada punto suma indicios: agua cerca, Vía de la Plata, cañadas y caminos viejos, vados, topónimos reveladores (Villar, Castillejo, Paredones, Torrejones, Los Romanos…), ermitas en el campo, terreno llano o ligeramente elevado. Así salen también sitios sin señal en el relieve: los de nivel «Hipótesis».</p>
+    <p class="small"><b>Auditoría de noviembre de 2026.</b> Se repasó todo el círculo otra vez, tesela a tesela, con cinco detectores y a dos escalas (30 m y 100 m). Así salieron los bultos pequeños (túmulos, hornos) que la primera pasada no veía. Cada punto nuevo se revisó con el mapa LiDAR del IGN, donde el agua sale en azul y los edificios en rojo. Si cae en una charca, junto a una nave o en un talud, baja de puntuación y la ficha lo dice. Los puntos nuevos llevan la etiqueta «Nuevo en la auditoría».</p>
+    <p class="small"><b>Cuevas y simas (rombos morados).</b> Hoyos cerrados que el agua no puede vaciar (posibles dolinas, pozos hundidos o cisternas) y cortados de roca de más de 35°. Puntúan mucho más en caliza y mármol (mapa geológico del IGME), que son las únicas rocas de la zona donde se forman cuevas, y cerca de minas o topónimos de cueva conocidos.</p>
+    <p class="small"><b>Satélite (círculos turquesa).</b> 39 imágenes de verano de Landsat de 2013 a 2025. Marcan puntos que, verano tras verano, están más frescos y verdes que su entorno: agua cerca de la superficie, como manantiales perdidos, minas de agua o cisternas. El térmico mide a 100 m, así que señala una zona, no un punto exacto.</p>
+    <p class="small"><b>Nunca entres en cuevas, pozos ni minas.</b> Pueden ceder, faltar aire u ocultar pozos. Míralos desde fuera y avisa.</p>
     <h3>Cómo leer la puntuación</h3>
     <p class="small">Es una suma de indicios, no una probabilidad. Una prueba con sitios conocidos (villa de Torre Águila, Huerta Montero, castillos y dólmenes) mostró que el relieve LiDAR solo destaca bien castillos y túmulos grandes; las villas romanas aradas apenas levantan el terreno. Por eso pesan tanto el agua, los caminos y la toponimia. Espera muchos falsos positivos: eras, balsas, majanos, plataformas de naves y movimientos de tierra modernos.</p>
     <h3>Cómo usarla en el campo</h3>
@@ -308,7 +359,7 @@
     <h3>Sin cobertura</h3>
     <p class="small">La app, los candidatos y tus notas funcionan siempre sin conexión. Los mapas que hayas visto con cobertura se quedan guardados. Para una salida, usa el botón de descarga con la zona en pantalla antes de salir de casa.</p>
     <h3>Fuentes</h3>
-    <p class="small mute">IGN-CNIG: Mapa LiDAR, MDT05, PNOA, vuelos históricos (CC BY 4.0). OpenStreetMap (ODbL): ríos, caminos, topónimos y monumentos. Bibliografía publicada para Perceiana, Villargordo y Los Estiles. Catastro: parcelas. Los yacimientos de la Carta Arqueológica no son públicos: consulta siempre a la Junta.</p>`);
+    <p class="small mute">IGN-CNIG: Mapa LiDAR, MDT05 y MDT25, PNOA, vuelos históricos (CC BY 4.0). IGME-CSIC: mapa geológico MAGNA 50. USGS/NASA Landsat 8 y 9 vía Microsoft Planetary Computer. OpenStreetMap (ODbL): ríos, caminos, topónimos y monumentos. Bibliografía publicada para Perceiana, Villargordo y Los Estiles. Catastro: parcelas. Los yacimientos de la Carta Arqueológica no son públicos: consulta siempre a la Junta.</p>`);
   }
 
   /* ---------------- mis puntos ---------------- */
@@ -404,6 +455,18 @@
     for (const [k, ni, pts] of D.R) {
       const ll = pts.map(p => [D.LA + p[0] / 1e5, D.LO + p[1] / 1e5]);
       L.polyline(ll, { color: k === 0 ? '#6a2fb0' : '#8a5a2b', weight: k === 0 ? 4 : 2.5, opacity: .85, dashArray: k === 0 ? null : '6 4' }).bindTooltip(D.RN[ni], { sticky: true }).addTo(layers.roads);
+    }
+    layers.kcav = L.layerGroup(); layers.chains = L.layerGroup();
+    for (const k of (D.KC || [])) {
+      const a = D.LA + k[0] / 1e5, o = D.LO + k[1] / 1e5, cueva = /cueva/.test(k[2]);
+      L.marker([a, o], { icon: L.divIcon({ className: '', html: `<div style="font:700 13px/1 sans-serif;color:#fff;background:#3a1d57;border-radius:3px;padding:2px 3px;box-shadow:0 0 2px #000">${cueva ? 'C' : 'M'}</div>`, iconSize: [16, 16] }) })
+        .on('click', () => sheet(`<button class="x" data-close aria-label="Cerrar">&times;</button><span class="chip lk">Ya conocido</span><h2>${esc(k[3])}</h2><div class="mute">${cueva ? 'Cueva o topónimo de cueva' : 'Mina o topónimo minero'} · OpenStreetMap · ${fmt(a, o)}</div><p class="small">Se usa como pista: cerca de minas y cuevas conocidas es más probable que haya otras cavidades. No es un candidato nuevo.${/calderita/i.test(k[3]) ? ' La Calderita tiene pinturas rupestres protegidas: respétala.' : ''}</p><p class="small"><b>No entres en minas ni cuevas</b>: hay riesgo de derrumbe, pozos ocultos y falta de aire.</p>`)).addTo(layers.kcav);
+    }
+    for (const ch of (D.chains || [])) {
+      const ll = ch.pts.map(p => [D.LA + p[0] / 1e5, D.LO + p[1] / 1e5]);
+      L.polyline(ll, { color: '#0f7c8a', weight: 3, dashArray: '2 6' }).addTo(layers.chains);
+      ll.forEach(p => L.circleMarker(p, { radius: 3, color: '#0f7c8a', weight: 1, fillColor: '#fff', fillOpacity: 1 }).addTo(layers.chains));
+      L.polyline(ll, { opacity: 0, weight: 18 }).on('click', () => sheet(`<button class="x" data-close aria-label="Cerrar">&times;</button><span class="chip lm">Hipótesis</span><span class="chip lm">Fila alineada</span><h2>Posible mina de agua (galería con lumbreras)</h2><div class="mute">${ch.n} hoyos o montículos en línea, uno cada ${ch.m} m · ${fmt(ll[0][0], ll[0][1])}</div><p class="small">Las galerías de agua antiguas dejan en superficie una fila de pozos de respiración (lumbreras) a distancias regulares, cada uno con su anillo de tierra sacada. Esta fila cumple el patrón, pero la prueba estadística de la auditoría avisa: con los datos de 5 m salen casi tantas filas así por puro azar. Tómala como pista débil.</p><p class="small">En el campo, busca montoncitos de tierra en fila con un hoyo en el centro y piedras de brocal, sobre todo bajando hacia un arroyo o una fuente.</p><div class="row"><button data-zoom="${ll[0][0]},${ll[0][1]}">Acercar</button><button data-nav="${ll[0][0]},${ll[0][1]}">Cómo llegar</button></div>`)).addTo(layers.chains);
     }
     drawCands(); drawMine(); toggles();
     map.on('moveend', detailRelief); detailRelief();

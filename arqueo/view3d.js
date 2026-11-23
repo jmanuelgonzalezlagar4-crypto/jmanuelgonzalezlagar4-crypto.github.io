@@ -8,7 +8,7 @@ var ARQ3D = (function () {
   function loadThree() {
     return new Promise((res, rej) => {
       if (window.THREE) return res();
-      const s = document.createElement('script'); s.src = 'lib/three.min.js?v=5'; s.onload = res; s.onerror = rej; document.head.appendChild(s);
+      const s = document.createElement('script'); s.src = 'lib/three.min.js?v=6'; s.onload = res; s.onerror = rej; document.head.appendChild(s);
     });
   }
   async function wmsImage(layer, url, bb, size) {

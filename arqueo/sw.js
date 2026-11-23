@@ -1,7 +1,7 @@
 // Service worker: app shell en caché y mapas guardados para usar sin cobertura
-const SHELL = 'arq-shell-v5';
+const SHELL = 'arq-shell-v6';
 const TILES = 'arq-tiles';
-const FILES = ['./', 'index.html', 'app.js?v=5', 'data.enc.json', 'manifest.json', 'icon.svg', 'icon-192.png', 'icon-512.png', 'lib/leaflet.js?v=5', 'lib/leaflet.css', 'lib/geotiff.js?v=5', 'lib/three.min.js?v=5', 'score.js?v=5', 'terrain.js?v=5', 'view3d.js?v=5'];
+const FILES = ['./', 'index.html', 'app.js?v=6', 'data.enc.json', 'manifest.json', 'icon.svg', 'icon-192.png', 'icon-512.png', 'lib/leaflet.js?v=6', 'lib/leaflet.css', 'lib/geotiff.js?v=6', 'lib/three.min.js?v=6', 'score.js?v=6', 'terrain.js?v=6', 'view3d.js?v=6'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(SHELL).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
