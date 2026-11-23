@@ -161,6 +161,7 @@ var ARQ3D = (function () {
       if (b.id === 'v3reset') { tgt.set(px, groundAt(px, pz), pz); dist = 520; pitch = 0.55; wx = px; wz = pz + 90; wyaw = 0; wpitch = -0.05; return; }
       mode = b.dataset.m; $('#v3mode').querySelectorAll('[data-m]').forEach(x => x.classList.toggle('on', x === b));
       $('#v3walk').hidden = mode !== 'walk';
+      pin.scale.setScalar(mode === 'walk' ? 0.12 : 1);
       if (mode === 'walk') { $('#v3msg').textContent = 'A pie: arrastra para mirar alrededor y mantén ▲ para andar. Empiezas a 90 m del punto, mirándolo.'; $('#v3msg').hidden = false; setTimeout(() => $('#v3msg').hidden = true, 5000); }
     };
     $('#v3ex').oninput = e => { exag = +e.target.value; $('#v3ev').textContent = '×' + exag; applyExag(); placePin(); tgt.y = groundAt(tgt.x, tgt.z); };
