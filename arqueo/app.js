@@ -5,8 +5,8 @@
   const $ = s => document.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const LS = {
-    get(k, d) { try { const v = localStorage.getItem('arq_' + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
-    set(k, v) { try { localStorage.setItem('arq_' + k, JSON.stringify(v)); } catch (e) { } }
+    get(k, d) { try { const v = localStorage.getItem((window.ARQ_DEMO ? 'arqdemo_' : 'arq_') + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem((window.ARQ_DEMO ? 'arqdemo_' : 'arq_') + k, JSON.stringify(v)); } catch (e) { } }
   };
   const LEVEL = ['Visto en el relieve', 'Probable', 'Hipótesis'];
   const LCOL = ['#3b6d11', '#d98a1c', '#8a6a3a'];
@@ -34,7 +34,7 @@
     try { D = await decrypt($('#pw').value.trim()); LS.set('pw', $('#pw').value.trim()); start(); }
     catch (x) { $('#err').textContent = 'Contraseña incorrecta.'; }
   });
-  (async () => { const p = LS.get('pw', null); if (p) { try { D = await decrypt(p); start(); } catch (e) { } } })();
+  (async () => { if (window.ARQ_DEMO) { D = await window.ARQ_DEMO; start(); return; } const p = LS.get('pw', null); if (p) { try { D = await decrypt(p); start(); } catch (e) { } } })();
 
   /* ---------------- decodificar candidatos ---------------- */
   function decode() {
