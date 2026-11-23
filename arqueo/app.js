@@ -16,7 +16,7 @@
   const reS = /villar|castillej|castro\b|paredon|paredes|paredita|paredón|torrej|torrecilla|torre agui|tejar|tejares|\bteja\b|moro\b|\bmora\b|romanos|calzada|atalaya|palacio quemado|casas viejas|malcasar|\bcasar\b|cristianos|siete piedras|los hornos|tesoro|almenas|castillo de guadajira|cuarto del castillo|barreras del castillo|sierra castillo|cerro del castillo|el castillo|fuente castillo|villarreala|villagordo|\bcastro\b/i;
 
   let D = null, C = [], map, layers = {}, gps = null, gpsMarker = null, relief = null;
-  let state = Object.assign({ base: 'lidar', cmp: 'none', op: 60, minS: 0, show: [1, 1, 1], known: 1, roads: 1, veto: 1, mine: 1, cat: 0, det: 0, detOp: 85, arq: 1, caves: 1, sat: 1, onlyNew: 0, geo: 0, kcav: 1, chains: 1 }, LS.get('state', {}));
+  let state = Object.assign({ base: 'lidar', cmp: 'none', op: 60, minS: 0, show: [1, 1, 1], known: 1, roads: 1, veto: 1, mine: 1, cat: 0, det: 0, detOp: 85, arq: 1, caves: 1, sat: 1, onlyNew: 0, geo: 0, kcav: 1, chains: 1, pz: 1 }, LS.get('state', {}));
   const marks = LS.get('marks', {});
   const mine = LS.get('mine', []);
   const saveState = () => LS.set('state', state);
@@ -230,7 +230,7 @@
   }
 
   document.addEventListener('click', e => {
-    const t = e.target.closest('[data-close],[data-mark],[data-zoom],[data-go],[data-base],[data-cmp],[data-delmine],[data-relief],[data-nav],[data-pat],[data-copy],[data-v3],[data-gsat],[data-gsv],[data-v3here]'); if (!t) return;
+    const t = e.target.closest('[data-close],[data-mark],[data-zoom],[data-go],[data-base],[data-cmp],[data-delmine],[data-relief],[data-nav],[data-pat],[data-copy],[data-v3],[data-gsat],[data-gsv],[data-v3here],[data-v3pz]'); if (!t) return;
     const d = t.dataset;
     if (d.close !== undefined) $('#sheet').classList.remove('on');
     if (d.mark !== undefined) { const id = d.id; if (d.mark) marks[id] = d.mark; else delete marks[id]; LS.set('marks', marks); drawCands(); openCand(C[id - 1]); }
@@ -241,6 +241,7 @@
     if (d.delmine) { mine.splice(+d.delmine, 1); LS.set('mine', mine); drawMine(); $('#sheet').classList.remove('on'); }
     if (d.relief) showRelief(C[+d.relief - 1]);
     if (d.v3) { const c = C[+d.v3 - 1]; ARQ3D.open({ a: c.a, o: c.o, sg: c.f.an ? c.f.an.sg : 1, title: c.t }); }
+    if (d.v3pz) { const [a, o] = d.v3pz.split(',').map(Number); ARQ3D.open({ a, o, title: 'Zona de prospección' }); }
     if (d.v3here !== undefined) { const m = map.getCenter(); $('#sheet').classList.remove('on'); ARQ3D.open({ a: m.lat, o: m.lng, title: 'Centro del mapa' }); }
     if (d.gsat) { const [a, o] = d.gsat.split(','); window.open(`https://www.google.com/maps/@?api=1&map_action=map&center=${a},${o}&zoom=19&basemap=satellite`, '_blank'); }
     if (d.gsv) { const [a, o] = d.gsv.split(','); window.open(`https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${a},${o}`, '_blank'); }
@@ -265,6 +266,7 @@
     <label class="ck"><input type="checkbox" id="k_roads" ${state.roads ? 'checked' : ''}> Vía de la Plata, cañadas y caminos viejos</label>
     <label class="ck"><input type="checkbox" id="k_cat" ${state.cat ? 'checked' : ''}> Parcelas del Catastro (al acercar)</label>
     <label class="ck"><input type="checkbox" id="k_mine" ${state.mine ? 'checked' : ''}> Mis puntos</label>
+    <label class="ck"><input type="checkbox" id="k_pz" ${state.pz ? 'checked' : ''}> <b>★ Prospección dirigida</b>: cuevas, leyendas de túneles, Guerra Civil y abrigos</label>
     <label class="ck"><input type="checkbox" id="k_geo" ${state.geo ? 'checked' : ''}> Geología (IGME 1:50.000): calizas y mármoles en azul</label>
     <label class="ck"><input type="checkbox" id="k_kcav" ${state.kcav ? 'checked' : ''}> Minas, cuevas y topónimos de cavidades conocidos</label>
     <label class="ck"><input type="checkbox" id="k_chains" ${state.chains ? 'checked' : ''}> Filas de hoyos alineados (posibles minas de agua)</label>
@@ -281,13 +283,13 @@
     $('#op').oninput = e => { state.op = +e.target.value; saveState(); if (cmpL) cmpL.setOpacity(state.op / 100); };
     $('#minS').oninput = e => { state.minS = +e.target.value; $('#msv').textContent = state.minS; saveState(); drawCands(); };
     document.querySelectorAll('[data-lv]').forEach(b => b.onchange = e => { state.show[+e.target.dataset.lv] = e.target.checked ? 1 : 0; saveState(); drawCands(); });
-    for (const k of ['veto', 'known', 'roads', 'mine', 'cat', 'geo', 'kcav', 'chains']) $('#k_' + k).onchange = e => { state[k] = e.target.checked ? 1 : 0; saveState(); toggles(); };
+    for (const k of ['veto', 'known', 'roads', 'mine', 'cat', 'geo', 'kcav', 'chains', 'pz']) $('#k_' + k).onchange = e => { state[k] = e.target.checked ? 1 : 0; saveState(); toggles(); };
     for (const k of ['arq', 'caves', 'sat', 'onlyNew']) $('#k_' + k).onchange = e => { state[k] = e.target.checked ? 1 : 0; saveState(); drawCands(); };
     $('#k_det').onchange = e => { state.det = e.target.checked ? 1 : 0; saveState(); detKey = ''; detailRelief(); if (state.det && map.getZoom() < 15) toast('Acércate (escala de 500 m o menos) y se dibuja solo.'); };
     $('#detOp').oninput = e => { state.detOp = +e.target.value; saveState(); if (detL) detL.setOpacity(state.detOp / 100); };
   }
   function toggles() {
-    for (const k of ['veto', 'known', 'roads', 'mine', 'kcav', 'chains']) { if (state[k]) layers[k].addTo(map); else map.removeLayer(layers[k]); }
+    for (const k of ['veto', 'known', 'roads', 'mine', 'kcav', 'chains', 'pz']) { if (state[k]) layers[k].addTo(map); else map.removeLayer(layers[k]); }
     setCat();
     if (geoL) { map.removeLayer(geoL); geoL = null; }
     if (state.geo) geoL = L.tileLayer.wms('https://mapas.igme.es/gis/services/Cartografia_Geologica/IGME_MAGNA_50/MapServer/WMSServer', { layers: '0', format: 'image/png', transparent: true, version: '1.3.0', opacity: 0.55, maxZoom: 21, maxNativeZoom: 16, attribution: 'IGME-CSIC MAGNA 50 (CC BY 4.0)' }).addTo(map).setZIndex(7);
@@ -456,7 +458,21 @@
       const ll = pts.map(p => [D.LA + p[0] / 1e5, D.LO + p[1] / 1e5]);
       L.polyline(ll, { color: k === 0 ? '#6a2fb0' : '#8a5a2b', weight: k === 0 ? 4 : 2.5, opacity: .85, dashArray: k === 0 ? null : '6 4' }).bindTooltip(D.RN[ni], { sticky: true }).addTo(layers.roads);
     }
-    layers.kcav = L.layerGroup(); layers.chains = L.layerGroup();
+    layers.kcav = L.layerGroup(); layers.chains = L.layerGroup(); layers.pz = L.layerGroup();
+    // prospección dirigida: zonas de investigación (cuevas, leyendas, Guerra Civil) y cortados de roca
+    const PZC = { cueva: '#5b2a86', leyenda: '#b8860b', guerra: '#8b1a1a', mina: '#2f5d50', abrigo: '#c25b12' };
+    const pzSheet = z => sheet(`<button class="x" data-close aria-label="Cerrar">&times;</button><span class="chip lm">Prospección dirigida</span><span class="chip lm">${esc(z.tag || '')}</span><h2>${esc(z.n)}</h2><div class="mute">${fmt(z.a, z.o)}${z.r ? ' · radio ' + (z.r >= 1000 ? (z.r / 1000).toFixed(1) + ' km' : z.r + ' m') : ''}</div>
+      ${(z.p || []).map(t => `<p class="small">${esc(t)}</p>`).join('')}
+      ${z.go ? `<h3>Qué hacer allí</h3><p class="small">${esc(z.go)}</p>` : ''}
+      <div class="row"><button data-zoom="${z.a},${z.o}">Acercar</button><button data-nav="${z.a},${z.o}">Cómo llegar</button><button data-v3pz="${z.a},${z.o}">Vista 3D</button></div>
+      ${z.src ? `<p class="mute small">Fuentes: ${esc(z.src)}</p>` : ''}
+      <p class="small"><b>No entres en cuevas, pozos ni galerías.</b> Mira desde fuera, fotografía y avisa. Pide permiso al dueño de la finca.</p>`);
+    for (const z of (D.pz || [])) {
+      const col = PZC[z.t] || '#555';
+      if (z.line) L.polyline(z.line, { color: col, weight: 3, dashArray: '8 6' }).on('click', () => pzSheet(z)).addTo(layers.pz);
+      if (z.r) L.circle([z.a, z.o], { radius: z.r, color: col, weight: 2, dashArray: '4 6', fillColor: col, fillOpacity: .06 }).on('click', () => pzSheet(z)).addTo(layers.pz);
+      L.marker([z.a, z.o], { icon: L.divIcon({ className: '', html: `<div style="background:${col};color:#fff;font:700 12px/1.1 sans-serif;padding:3px 6px;border-radius:12px;white-space:nowrap;box-shadow:0 1px 3px #000;transform:translate(-50%,-50%);display:inline-block">★ ${esc(z.short || z.n)}</div>`, iconSize: [0, 0] }) }).on('click', () => pzSheet(z)).addTo(layers.pz);
+    }
     for (const k of (D.KC || [])) {
       const a = D.LA + k[0] / 1e5, o = D.LO + k[1] / 1e5, cueva = /cueva/.test(k[2]);
       L.marker([a, o], { icon: L.divIcon({ className: '', html: `<div style="font:700 13px/1 sans-serif;color:#fff;background:#3a1d57;border-radius:3px;padding:2px 3px;box-shadow:0 0 2px #000">${cueva ? 'C' : 'M'}</div>`, iconSize: [16, 16] }) })
