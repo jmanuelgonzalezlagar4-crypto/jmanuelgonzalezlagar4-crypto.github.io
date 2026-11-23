@@ -1,3 +1,2 @@
-<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><meta name="robots" content="noindex"><title>Prueba</title>
-<script>window.ARQ_DEMO=fetch('demo.json').then(r=>r.json());</script></head><body></body>
-<script>fetch('index.html').then(r=>r.text()).then(h=>{document.open();document.write(h.replace('<script src="lib/leaflet.js">','<script>window.ARQ_DEMO=fetch("demo.json").then(r=>r.json());<\/script><script src="lib/leaflet.js">'));document.close();});</script></html>
+<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><meta name="robots" content="noindex"><title>Prueba</title></head><body>
+<script>fetch('index.html',{cache:'no-store'}).then(r=>r.text()).then(h=>{const v='?v='+Date.now();h=h.replace(/src="(lib\/leaflet.js|lib\/geotiff.js|score.js|app.js)"/g,(m,f)=>'src="'+f+v+'"').replace('<script src="lib/leaflet.js','<script>window.ARQ_DEMO=fetch("demo.json").then(r=>r.json());<\/script><script src="lib/leaflet.js');document.open();document.write(h);document.close();});</script></body></html>
